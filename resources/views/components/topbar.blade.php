@@ -18,37 +18,6 @@
         <!-- Right Side: Notifications & Profile -->
         <div class="flex items-center space-x-4">
             
-            <!-- Tenant Switcher -->
-            @auth
-                @php
-                    $currentTenant = app(\App\Services\TenantContext::class)->get();
-                    $userTenants = auth()->user()->tenants()->where('tenant_users.is_active', true)->get();
-                @endphp
-                @if($currentTenant)
-                    <div x-data="{ tenantOpen: false }" class="relative">
-                        <button @click="tenantOpen = !tenantOpen" @click.away="tenantOpen = false" class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-all duration-200 focus:outline-none">
-                            <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
-                            <span>{{ $currentTenant->name }}</span>
-                            @if($userTenants->count() > 1)
-                                <svg class="w-3.5 h-3.5 text-blue-400" :class="{'rotate-180': tenantOpen}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                            @endif
-                        </button>
-                        @if($userTenants->count() > 1)
-                            <div x-show="tenantOpen" x-transition class="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-1.5 z-50" style="display: none;">
-                                <div class="px-4 py-1.5 border-b border-gray-100 text-[10px] uppercase font-semibold text-gray-400">Switch Tenant</div>
-                                @foreach($userTenants as $t)
-                                    @if($t->id !== $currentTenant->id)
-                                        <a href="?_tenant={{ $t->id }}" class="flex items-center justify-between px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 transition-colors">
-                                            <span class="font-medium text-gray-800">{{ $t->name }}</span>
-                                            <span class="text-xs text-gray-400">{{ $t->slug }}</span>
-                                        </a>
-                                    @endif
-                                @endforeach
-                            </div>
-                        @endif
-                    </div>
-                @endif
-            @endauth
 
             <!-- Notifications -->
             <button class="relative p-2 text-gray-400 hover:text-gray-500 focus:outline-none focus:text-gray-500">

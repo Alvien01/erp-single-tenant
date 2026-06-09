@@ -46,9 +46,19 @@ Route::get('warehouses', WarehouseManager::class)
     ->middleware(['auth', 'verified'])
     ->name('warehouses');
 
+use App\Http\Controllers\SalesQuotationPdfController;
+
 Route::get('sales-quotations', SalesQuotationManager::class)
     ->middleware(['auth', 'verified'])
     ->name('sales-quotations');
+
+Route::get('sales-quotations/{id}/pdf', [SalesQuotationPdfController::class, 'download'])
+    ->middleware(['auth', 'verified'])
+    ->name('sales-quotations.pdf');
+
+Route::get('sales-quotations/{id}/pdf/stream', [SalesQuotationPdfController::class, 'stream'])
+    ->middleware(['auth', 'verified'])
+    ->name('sales-quotations.pdf.stream');
 
 Route::get('sales-orders', SalesOrderManager::class)
     ->middleware(['auth', 'verified'])
@@ -258,12 +268,10 @@ Route::get('config-basic', \App\Livewire\ConfigBasicManager::class)
     ->middleware(['auth', 'verified'])
     ->name('config-basic-manager');
 
-// Platform Super Admin
-Route::get('platform-admin', \App\Livewire\PlatformAdminPanel::class)->middleware(['auth', 'verified'])->name('platform-admin');
 
 // Advanced Enterprise Modules
 Route::get('multi-company', \App\Livewire\MultiCompanyManager::class)->middleware(['auth', 'verified', 'module:multi-company'])->name('multi-company');
-Route::get('saas-billing', \App\Livewire\SaasBillingManager::class)->middleware(['auth', 'verified'])->name('saas-billing');
+
 Route::get('website-cms', \App\Livewire\WebsiteCmsManager::class)->middleware(['auth', 'verified', 'module:cms'])->name('website-cms');
 Route::get('advanced-logistics', \App\Livewire\AdvancedLogisticsManager::class)->middleware(['auth', 'verified', 'module:logistics'])->name('advanced-logistics');
 Route::get('advanced-manufacturing', \App\Livewire\AdvancedManufacturingManager::class)->middleware(['auth', 'verified', 'module:manufacturing'])->name('advanced-manufacturing');
@@ -278,7 +286,10 @@ Route::match(['get', 'post'], 'logout', function () {
     return redirect()->route('login');
 })->name('logout');
 
-// Tenant Invitation Flow
-Route::get('invitations/accept/{token}', [\App\Http\Controllers\InvitationController::class, 'accept'])->name('invitations.accept');
+
+// ── Midtrans Payment Webhook (no CSRF, no auth) ──────────────────
+Route::post('/midtrans/webhook', [\App\Http\Controllers\MidtransWebhookController::class, 'handle'])
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
+    ->name('midtrans.webhook');
 
 require __DIR__.'/auth.php';

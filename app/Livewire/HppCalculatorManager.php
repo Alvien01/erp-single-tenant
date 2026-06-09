@@ -18,23 +18,17 @@ class HppCalculatorManager extends Component
     public $isEditMode = false;
     public $calculation_id;
     public $nama_barang = '';
-    public $harga_barang = 0;
-    public $ongkir_supplier_to_forwarder = 0;
-    public $tax_refund = 0;
-    public $ongkir_china_to_indonesia = 0;
-    public $pajak_impor = 0;
-    public $margin = 0;
+    public $persediaan_awal = 0;
+    public $pembelian_bersih = 0;
+    public $persediaan_akhir = 0;
     public $total_hpp = 0;
     public $selected_product_id = '';
 
     protected $rules = [
         'nama_barang' => 'required|string|max:255',
-        'harga_barang' => 'required|integer|min:0',
-        'ongkir_supplier_to_forwarder' => 'required|integer',
-        'tax_refund' => 'required|integer',
-        'ongkir_china_to_indonesia' => 'required|integer|min:0',
-        'pajak_impor' => 'required|integer',
-        'margin' => 'required|integer',
+        'persediaan_awal' => 'required|integer|min:0',
+        'pembelian_bersih' => 'required|integer|min:0',
+        'persediaan_akhir' => 'required|integer|min:0',
     ];
 
     public function mount()
@@ -46,12 +40,9 @@ class HppCalculatorManager extends Component
     {
         $this->calculation_id = null;
         $this->nama_barang = '';
-        $this->harga_barang = 0;
-        $this->ongkir_supplier_to_forwarder = 0;
-        $this->tax_refund = 0;
-        $this->ongkir_china_to_indonesia = 0;
-        $this->pajak_impor = 0;
-        $this->margin = 0;
+        $this->persediaan_awal = 0;
+        $this->pembelian_bersih = 0;
+        $this->persediaan_akhir = 0;
         $this->total_hpp = 0;
         $this->selected_product_id = '';
         $this->isEditMode = false;
@@ -60,7 +51,7 @@ class HppCalculatorManager extends Component
 
     public function updated($propertyName)
     {
-        if (in_array($propertyName, ['harga_barang', 'ongkir_supplier_to_forwarder', 'tax_refund', 'ongkir_china_to_indonesia', 'pajak_impor', 'margin'])) {
+        if (in_array($propertyName, ['persediaan_awal', 'pembelian_bersih', 'persediaan_akhir'])) {
             $this->$propertyName = $this->$propertyName === '' ? 0 : (int) $this->$propertyName;
         }
 
@@ -73,7 +64,7 @@ class HppCalculatorManager extends Component
             $product = Product::find($id);
             if ($product) {
                 $this->nama_barang = $product->name;
-                $this->harga_barang = (int)$product->price;
+                $this->pembelian_bersih = (int)$product->price;
                 $this->calculateHpp();
             }
         }
@@ -81,12 +72,9 @@ class HppCalculatorManager extends Component
 
     public function calculateHpp()
     {
-        $this->total_hpp = (int)$this->harga_barang 
-            + (int)$this->ongkir_supplier_to_forwarder 
-            + (int)$this->tax_refund 
-            + (int)$this->ongkir_china_to_indonesia 
-            + (int)$this->pajak_impor 
-            + (int)$this->margin;
+        $this->total_hpp = (int)$this->persediaan_awal 
+            + (int)$this->pembelian_bersih 
+            - (int)$this->persediaan_akhir;
     }
 
     public function openModal()
@@ -112,12 +100,9 @@ class HppCalculatorManager extends Component
         $calc = HppCalculation::findOrFail($id);
         $this->calculation_id = $calc->id;
         $this->nama_barang = $calc->nama_barang;
-        $this->harga_barang = (int)$calc->harga_barang;
-        $this->ongkir_supplier_to_forwarder = (int)$calc->ongkir_supplier_to_forwarder;
-        $this->tax_refund = (int)$calc->tax_refund;
-        $this->ongkir_china_to_indonesia = (int)$calc->ongkir_china_to_indonesia;
-        $this->pajak_impor = (int)$calc->pajak_impor;
-        $this->margin = (int)$calc->margin;
+        $this->persediaan_awal = (int)$calc->persediaan_awal;
+        $this->pembelian_bersih = (int)$calc->pembelian_bersih;
+        $this->persediaan_akhir = (int)$calc->persediaan_akhir;
         $this->total_hpp = (int)$calc->total_hpp;
         
         session()->flash('info', "Kalkulasi untuk '{$calc->nama_barang}' berhasil dimuat di panel kalkulator.");
@@ -133,12 +118,9 @@ class HppCalculatorManager extends Component
             ['id' => $this->calculation_id],
             [
                 'nama_barang' => $this->nama_barang,
-                'harga_barang' => (int)$this->harga_barang,
-                'ongkir_supplier_to_forwarder' => (int)$this->ongkir_supplier_to_forwarder,
-                'tax_refund' => (int)$this->tax_refund,
-                'ongkir_china_to_indonesia' => (int)$this->ongkir_china_to_indonesia,
-                'pajak_impor' => (int)$this->pajak_impor,
-                'margin' => (int)$this->margin,
+                'persediaan_awal' => (int)$this->persediaan_awal,
+                'pembelian_bersih' => (int)$this->pembelian_bersih,
+                'persediaan_akhir' => (int)$this->persediaan_akhir,
                 'total_hpp' => $this->total_hpp,
             ]
         );
@@ -161,12 +143,9 @@ class HppCalculatorManager extends Component
         $calc = HppCalculation::findOrFail($id);
         $this->calculation_id = $calc->id;
         $this->nama_barang = $calc->nama_barang;
-        $this->harga_barang = (int)$calc->harga_barang;
-        $this->ongkir_supplier_to_forwarder = (int)$calc->ongkir_supplier_to_forwarder;
-        $this->tax_refund = (int)$calc->tax_refund;
-        $this->ongkir_china_to_indonesia = (int)$calc->ongkir_china_to_indonesia;
-        $this->pajak_impor = (int)$calc->pajak_impor;
-        $this->margin = (int)$calc->margin;
+        $this->persediaan_awal = (int)$calc->persediaan_awal;
+        $this->pembelian_bersih = (int)$calc->pembelian_bersih;
+        $this->persediaan_akhir = (int)$calc->persediaan_akhir;
         $this->total_hpp = (int)$calc->total_hpp;
 
         $this->isEditMode = true;

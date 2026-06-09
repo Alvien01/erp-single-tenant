@@ -66,12 +66,13 @@
                                 </span>
                             </td>
                             <td class="py-4 px-6 text-center space-x-2">
+                                <a href="{{ route('sales-quotations.pdf.stream', $sq->id) }}" target="_blank" class="text-purple-600 hover:text-purple-900 font-medium cursor-pointer mr-2" title="View PDF">
+                                    PDF
+                                </a>
                                 @if($sq->status === 'draft' || $sq->status === 'sent')
                                     <button wire:click="edit({{ $sq->id }})" class="text-blue-600 hover:text-blue-900 font-medium cursor-pointer">Edit</button>
                                     <button wire:click="convertToOrder({{ $sq->id }})" class="text-emerald-600 hover:text-emerald-900 font-medium cursor-pointer">Convert to Order</button>
                                     <button wire:click="cancelQuotation({{ $sq->id }})" class="text-red-600 hover:text-red-900 font-medium cursor-pointer">Cancel</button>
-                                @else
-                                    <span class="text-gray-400 font-medium">-</span>
                                 @endif
                             </td>
                         </tr>
@@ -114,15 +115,73 @@
                         </h3>
                         
                         <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <!-- Customer -->
-                            <div>
+                            <!-- Customer (Inline Searchable + Create) -->
+                            <div class="relative" x-data="{ }" @click.away="$wire.set('showCustomerDropdown', false)">
                                 <label class="block text-sm font-medium text-gray-700">Customer</label>
-                                <select wire:model="customer_id" class="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm bg-white">
-                                    <option value="">Select Customer</option>
-                                    @foreach($customers as $c)
-                                        <option value="{{ $c->id }}">{{ $c->name }}</option>
-                                    @endforeach
-                                </select>
+
+                                @if($selectedCustomerName)
+                                    {{-- Selected customer chip --}}
+                                    <div class="mt-1 flex items-center justify-between w-full border border-emerald-300 bg-emerald-50 rounded-md py-2 px-3 sm:text-sm">
+                                        <div class="flex items-center gap-2">
+                                            <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                                            <span class="font-medium text-emerald-800">{{ $selectedCustomerName }}</span>
+                                        </div>
+                                        <button type="button" wire:click="clearCustomer" class="text-gray-400 hover:text-red-500 transition cursor-pointer">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                        </button>
+                                    </div>
+                                @else
+                                    {{-- Search input --}}
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                                        </span>
+                                        <input
+                                            type="text"
+                                            wire:model.live.debounce.300ms="customerSearch"
+                                            wire:keydown.enter.prevent="createAndSelectCustomer"
+                                            class="mt-1 block w-full pl-9 pr-4 border border-gray-300 rounded-md py-2 px-3 sm:text-sm focus:ring-blue-500 focus:border-blue-500"
+                                            placeholder="Type to search or create new customer..."
+                                            autocomplete="off"
+                                        >
+                                    </div>
+
+                                    {{-- Dropdown results --}}
+                                    @if($showCustomerDropdown && $customerSearch)
+                                        <div class="absolute z-50 mt-1 w-full bg-white rounded-md shadow-lg border border-gray-200 max-h-60 overflow-y-auto">
+                                            @if($filteredCustomers->count() > 0)
+                                                @foreach($filteredCustomers as $c)
+                                                    <button type="button"
+                                                        wire:click="selectCustomer({{ $c->id }})"
+                                                        class="w-full text-left px-4 py-2.5 hover:bg-blue-50 transition flex items-center gap-3 cursor-pointer border-b border-gray-100 last:border-0">
+                                                        <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                                                            <span class="text-blue-700 text-xs font-bold">{{ strtoupper(substr($c->name, 0, 2)) }}</span>
+                                                        </div>
+                                                        <div>
+                                                            <div class="text-sm font-medium text-gray-900">{{ $c->name }}</div>
+                                                            @if($c->company_name)
+                                                                <div class="text-xs text-gray-500">{{ $c->company_name }}</div>
+                                                            @endif
+                                                        </div>
+                                                    </button>
+                                                @endforeach
+                                            @endif
+
+                                            {{-- Create new option --}}
+                                            <button type="button"
+                                                wire:click="createAndSelectCustomer"
+                                                class="w-full text-left px-4 py-2.5 hover:bg-emerald-50 transition flex items-center gap-3 cursor-pointer bg-gray-50 border-t border-gray-200">
+                                                <div class="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                                                    <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                                </div>
+                                                <div>
+                                                    <div class="text-sm font-medium text-emerald-700">Create "<span class="font-bold">{{ $customerSearch }}</span>"</div>
+                                                    <div class="text-xs text-gray-500">Add as new customer & select</div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    @endif
+                                @endif
                                 @error('customer_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                             </div>
 
@@ -158,9 +217,9 @@
                                 @foreach($items as $index => $item)
                                     <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
                                         <!-- Product Selection -->
-                                        <div class="md:col-span-4">
+                                        <div class="md:col-span-3">
                                             <label class="block text-xs text-gray-500">Product</label>
-                                            <select wire:model="items.{{ $index }}.product_id" class="mt-1 block w-full border border-gray-300 rounded-md py-1.5 px-3 text-sm bg-white">
+                                            <select wire:model.live="items.{{ $index }}.product_id" class="mt-1 block w-full border border-gray-300 rounded-md py-1.5 px-3 text-sm bg-white">
                                                 <option value="">Select Product</option>
                                                 @foreach($products as $p)
                                                     <option value="{{ $p->id }}">{{ $p->name }} (Rp {{ number_format($p->price, 0) }})</option>
@@ -171,19 +230,27 @@
                                         <!-- Quantity -->
                                         <div class="md:col-span-2">
                                             <label class="block text-xs text-gray-500">Qty</label>
-                                            <input type="number" step="0.01" wire:model="items.{{ $index }}.qty" class="mt-1 block w-full border border-gray-300 rounded-md py-1.5 px-3 text-sm">
+                                            <input type="number" step="0.01" wire:model.live.debounce.300ms="items.{{ $index }}.qty" class="mt-1 block w-full border border-gray-300 rounded-md py-1.5 px-3 text-sm">
                                         </div>
 
                                         <!-- Unit Price -->
-                                        <div class="md:col-span-3">
+                                        <div class="md:col-span-2">
                                             <label class="block text-xs text-gray-500">Unit Price</label>
-                                            <input type="number" step="0.01" wire:model="items.{{ $index }}.price" class="mt-1 block w-full border border-gray-300 rounded-md py-1.5 px-3 text-sm">
+                                            <input type="number" step="0.01" wire:model.live.debounce.300ms="items.{{ $index }}.price" class="mt-1 block w-full border border-gray-300 rounded-md py-1.5 px-3 text-sm">
                                         </div>
 
                                         <!-- Discount -->
                                         <div class="md:col-span-2">
                                             <label class="block text-xs text-gray-500">Discount (Rp)</label>
-                                            <input type="number" step="1" wire:model="items.{{ $index }}.discount" class="mt-1 block w-full border border-gray-300 rounded-md py-1.5 px-3 text-sm">
+                                            <input type="number" step="1" wire:model.live.debounce.300ms="items.{{ $index }}.discount" class="mt-1 block w-full border border-gray-300 rounded-md py-1.5 px-3 text-sm">
+                                        </div>
+
+                                        <!-- Total Price -->
+                                        <div class="md:col-span-2">
+                                            <label class="block text-xs text-gray-500">Total Price</label>
+                                            <div class="mt-1 block w-full py-1.5 px-3 bg-gray-50 border border-gray-200 rounded-md text-sm font-mono text-right text-gray-700">
+                                                Rp {{ number_format(((float)($item['qty'] ?? 0) * (float)($item['price'] ?? 0)) - (float)($item['discount'] ?? 0), 0, ',', '.') }}
+                                            </div>
                                         </div>
 
                                         <!-- Actions -->

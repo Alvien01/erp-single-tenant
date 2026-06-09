@@ -11,15 +11,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Append TenantMiddleware to the 'web' middleware group
-        $middleware->web(append: [
-            \App\Http\Middleware\TenantMiddleware::class,
+        // Register 'module' alias
+        $middleware->alias([
+            'module' => \App\Http\Middleware\CheckModuleAccess::class,
         ]);
 
-        // Register 'tenant' as an alias for use in specific routes
-        $middleware->alias([
-            'tenant' => \App\Http\Middleware\TenantMiddleware::class,
-            'module' => \App\Http\Middleware\CheckModuleAccess::class,
+        // Exclude Midtrans webhook from CSRF verification
+        $middleware->validateCsrfTokens(except: [
+            'midtrans/webhook',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

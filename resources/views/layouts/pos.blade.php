@@ -27,12 +27,17 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        /* Scrollbar utility classes */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
         body {
             font-family: 'Inter', sans-serif;
             background-color: #0f172a; /* Slate 900 */
             color: #f8fafc; /* Slate 50 */
             overscroll-behavior-y: contain; /* Prevent pull-to-refresh on mobile */
+            -webkit-text-size-adjust: 100%;
         }
         
         .font-display { font-family: 'Outfit', sans-serif; }
@@ -44,11 +49,18 @@
             -webkit-backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
+
+        /* Safe area support for notch screens */
+        header {
+            padding-top: env(safe-area-inset-top, 0px);
+            padding-left: env(safe-area-inset-left, 1rem);
+            padding-right: env(safe-area-inset-right, 1rem);
+        }
     </style>
 </head>
 <body class="antialiased overflow-hidden h-screen w-screen flex flex-col">
     <!-- Top Navigation Bar for POS -->
-    <header class="glass-panel border-b border-slate-700/50 h-14 shrink-0 px-4 flex items-center justify-between z-10">
+    <header class="glass-panel border-b border-slate-700/50 min-h-14 py-2 sm:py-0 shrink-0 px-4 flex items-center justify-between z-10">
         <div class="flex items-center gap-4">
             <a href="{{ route('dashboard') }}" class="text-slate-400 hover:text-white transition-colors">
                 <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

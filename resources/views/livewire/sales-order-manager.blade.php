@@ -168,9 +168,9 @@
                                 @foreach($items as $index => $item)
                                     <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
                                         <!-- Product Selection -->
-                                        <div class="md:col-span-4">
+                                        <div class="md:col-span-3">
                                             <label class="block text-xs text-gray-500">Product</label>
-                                            <select wire:model="items.{{ $index }}.product_id" class="mt-1 block w-full border border-gray-300 rounded-md py-1.5 px-3 text-sm bg-white">
+                                            <select wire:model.live="items.{{ $index }}.product_id" class="mt-1 block w-full border border-gray-300 rounded-md py-1.5 px-3 text-sm bg-white">
                                                 <option value="">Select Product</option>
                                                 @foreach($products as $p)
                                                     <option value="{{ $p->id }}">{{ $p->name }} (Rp {{ number_format($p->price, 0) }})</option>
@@ -181,19 +181,27 @@
                                         <!-- Quantity -->
                                         <div class="md:col-span-2">
                                             <label class="block text-xs text-gray-500">Qty</label>
-                                            <input type="number" step="0.01" wire:model="items.{{ $index }}.qty" class="mt-1 block w-full border border-gray-300 rounded-md py-1.5 px-3 text-sm">
+                                            <input type="number" step="0.01" wire:model.live.debounce.300ms="items.{{ $index }}.qty" class="mt-1 block w-full border border-gray-300 rounded-md py-1.5 px-3 text-sm">
                                         </div>
 
                                         <!-- Unit Price -->
-                                        <div class="md:col-span-3">
+                                        <div class="md:col-span-2">
                                             <label class="block text-xs text-gray-500">Unit Price</label>
-                                            <input type="number" step="0.01" wire:model="items.{{ $index }}.price" class="mt-1 block w-full border border-gray-300 rounded-md py-1.5 px-3 text-sm">
+                                            <input type="number" step="0.01" wire:model.live.debounce.300ms="items.{{ $index }}.price" class="mt-1 block w-full border border-gray-300 rounded-md py-1.5 px-3 text-sm">
                                         </div>
 
                                         <!-- Discount -->
                                         <div class="md:col-span-2">
                                             <label class="block text-xs text-gray-500">Discount (Rp)</label>
-                                            <input type="number" step="1" wire:model="items.{{ $index }}.discount" class="mt-1 block w-full border border-gray-300 rounded-md py-1.5 px-3 text-sm">
+                                            <input type="number" step="1" wire:model.live.debounce.300ms="items.{{ $index }}.discount" class="mt-1 block w-full border border-gray-300 rounded-md py-1.5 px-3 text-sm">
+                                        </div>
+
+                                        <!-- Total Price -->
+                                        <div class="md:col-span-2">
+                                            <label class="block text-xs text-gray-500">Total Price</label>
+                                            <div class="mt-1 block w-full py-1.5 px-3 bg-gray-50 border border-gray-200 rounded-md text-sm font-mono text-right text-gray-700">
+                                                Rp {{ number_format(((float)($item['qty'] ?? 0) * (float)($item['price'] ?? 0)) - (float)($item['discount'] ?? 0), 0, ',', '.') }}
+                                            </div>
                                         </div>
 
                                         <!-- Actions -->

@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use Livewire\Component;
+use App\Services\MidtransService;
 use App\Models\Product;
 use App\Models\Member;
 use App\Models\Store;
@@ -47,6 +48,15 @@ class PosTerminal extends Component
     public $paymentMethod = 'cash';
     public $cashReceived = 0;
     public $qrisReference = '';
+
+    // QRIS / Midtrans
+    public $qrisImageUrl = null;
+    public $qrisOrderId = null;
+    public $qrisTransactionId = null;
+    public $qrisExpiryTime = null;
+    public $qrisStatus = null; // null, 'pending', 'settlement', 'expire', 'cancel'
+    public $qrisLoading = false;
+    public $qrisPaid = false;
 
     // Voucher
     public $voucherCode = '';
@@ -415,7 +425,200 @@ class PosTerminal extends Component
             return;
         }
         $this->cashReceived = $this->grandTotal;
+        $this->paymentMethod = 'cash';
+        $this->resetQrisState();
         $this->showPaymentModal = true;
+    }
+
+    /**
+     * Reset all QRIS-related state.
+     */
+    private function resetQrisState()
+    {
+        $this->qrisImageUrl = null;
+        $this->qrisOrderId = null;
+        $this->qrisTransactionId = null;
+        $this->qrisExpiryTime = null;
+        $this->qrisStatus = null;
+        $this->qrisLoading = false;
+        $this->qrisPaid = false;
+        $this->qrisReference = '';
+    }
+
+    /**
+     * Called when user switches to QRIS payment method.
+     * Generates a dynamic QRIS via Midtrans Core API.
+     */
+    public function generateQris()
+    {
+        $this->paymentMethod = 'qris';
+        $this->qrisLoading = true;
+        $this->qrisPaid = false;
+        $this->qrisImageUrl = null;
+
+        $amount = (int) round($this->grandTotal);
+        if ($amount <= 0) {
+            $this->showNotificationMessage('Total pembayaran tidak valid.', 'error');
+            $this->qrisLoading = false;
+            return;
+        }
+
+        // Generate unique order ID
+        $orderId = 'POS-' . ($this->currentStore ? $this->currentStore->code : 'HQ') . '-' . now()->format('ymdHis') . '-' . rand(1000, 9999);
+
+        // Fallback to offline/local dynamic QRIS generator if configured
+        if (env('QRIS_PROVIDER') === 'local') {
+            $staticPayload = env('STATIC_QRIS_PAYLOAD');
+            if (empty($staticPayload)) {
+                $this->showNotificationMessage('Error: STATIC_QRIS_PAYLOAD belum dikonfigurasi di file .env.', 'error');
+                $this->qrisLoading = false;
+                return;
+            }
+
+            $dynamicQris = \App\Services\QrisDynamicGenerator::makeDynamic($staticPayload, $amount);
+            if (!$dynamicQris) {
+                $this->showNotificationMessage('Gagal membuat QRIS dinamis dari template statis.', 'error');
+                $this->qrisLoading = false;
+                return;
+            }
+
+            $this->qrisImageUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=' . urlencode($dynamicQris);
+            $this->qrisOrderId = $orderId;
+            $this->qrisStatus = 'local_pending';
+            $this->qrisLoading = false;
+            $this->showNotificationMessage('QRIS Dinamis berhasil dibuat dari template lokal!', 'success');
+            return;
+        }
+
+        // Build item details
+        $itemDetails = [];
+        foreach ($this->cart as $item) {
+            $itemDetails[] = [
+                'id' => (string) ($item['id'] ?? ''),
+                'price' => (int) ($item['price'] ?? 0),
+                'quantity' => (int) ($item['qty'] ?? 1),
+                'name' => mb_substr($item['name'] ?? 'Item', 0, 50),
+            ];
+        }
+
+        // Add discount if any
+        $totalDiscount = (int) round($this->totalDiscount);
+        if ($totalDiscount > 0) {
+            $itemDetails[] = [
+                'id' => 'DISCOUNT',
+                'price' => -$totalDiscount,
+                'quantity' => 1,
+                'name' => 'Diskon / Potongan',
+            ];
+        }
+
+        // Add tax if any
+        $taxAmount = (int) round($this->taxAmount);
+        if ($taxAmount > 0) {
+            $itemDetails[] = [
+                'id' => 'TAX',
+                'price' => $taxAmount,
+                'quantity' => 1,
+                'name' => 'Pajak (PPN)',
+            ];
+        }
+
+        // Add service charge if any
+        $serviceCharge = (int) round($this->serviceCharge);
+        if ($serviceCharge > 0) {
+            $itemDetails[] = [
+                'id' => 'SERVICE_CHARGE',
+                'price' => $serviceCharge,
+                'quantity' => 1,
+                'name' => 'Biaya Layanan',
+            ];
+        }
+
+        // Dynamically adjust any potential float rounding mismatch
+        $itemDetailsSum = array_reduce($itemDetails, function ($carry, $item) {
+            return $carry + ($item['price'] * $item['quantity']);
+        }, 0);
+
+        if ($itemDetailsSum !== $amount) {
+            $diff = $amount - $itemDetailsSum;
+            $itemDetails[] = [
+                'id' => 'ROUNDING_ADJUSTMENT',
+                'price' => (int) $diff,
+                'quantity' => 1,
+                'name' => 'Penyesuaian Pembulatan',
+            ];
+        }
+
+        $midtrans = new MidtransService();
+        $result = $midtrans->createQrisCharge($orderId, $amount, $itemDetails);
+
+        $this->qrisLoading = false;
+
+        if ($result['success']) {
+            $this->qrisImageUrl = $result['qr_url'];
+            $this->qrisOrderId = $result['order_id'];
+            $this->qrisTransactionId = $result['transaction_id'];
+            $this->qrisExpiryTime = $result['expiry_time'];
+            $this->qrisStatus = 'pending';
+
+            $this->showNotificationMessage('QR Code QRIS berhasil dibuat! Silakan scan untuk membayar.', 'success');
+        } else {
+            $this->showNotificationMessage('Gagal membuat QRIS: ' . ($result['error'] ?? 'Unknown error'), 'error');
+        }
+    }
+
+    /**
+     * Poll Midtrans for QRIS payment status.
+     * Called by frontend polling (wire:poll or Alpine setInterval).
+     */
+    public function checkQrisStatus()
+    {
+        if (!$this->qrisOrderId || $this->qrisPaid) {
+            return;
+        }
+
+        $midtrans = new MidtransService();
+        $result = $midtrans->checkTransactionStatus($this->qrisOrderId);
+
+        $this->qrisStatus = $result['status'];
+
+        if ($result['is_paid']) {
+            $this->qrisPaid = true;
+            $this->qrisReference = $result['transaction_id'] ?? $this->qrisOrderId;
+            $this->showNotificationMessage('Pembayaran QRIS berhasil diterima!', 'success');
+
+            // Dispatch browser event for success sound
+            $this->dispatch('play-success-sound');
+        } elseif (in_array($result['status'], ['expire', 'cancel', 'deny'])) {
+            $this->showNotificationMessage('Pembayaran QRIS ' . $result['status'] . '. Silakan generate ulang.', 'error');
+            $this->qrisImageUrl = null;
+        }
+    }
+
+    /**
+     * Cancel a pending QRIS transaction and reset state.
+     */
+    public function cancelQris()
+    {
+        if ($this->qrisOrderId && $this->qrisStatus !== 'local_pending') {
+            $midtrans = new MidtransService();
+            $midtrans->cancelTransaction($this->qrisOrderId);
+        }
+
+        $this->resetQrisState();
+        $this->paymentMethod = 'cash';
+        $this->showNotificationMessage('QRIS dibatalkan.', 'info');
+    }
+
+    /**
+     * Confirm local QRIS payment manually by cashier.
+     */
+    public function confirmManualQris()
+    {
+        $this->qrisPaid = true;
+        $this->qrisReference = 'MANUAL-' . ($this->qrisOrderId ?? now()->format('ymdHis'));
+        $this->showNotificationMessage('Pembayaran dikonfirmasi secara manual oleh kasir.', 'success');
+        $this->dispatch('play-success-sound');
     }
 
     public function processPayment()
@@ -427,6 +630,11 @@ class PosTerminal extends Component
 
         if ($this->paymentMethod === 'cash' && $this->cashReceived < $this->grandTotal) {
             $this->showNotificationMessage('Uang yang diterima kurang dari total belanja.', 'error');
+            return;
+        }
+
+        if ($this->paymentMethod === 'qris' && !$this->qrisPaid) {
+            $this->showNotificationMessage('Pembayaran QRIS belum dikonfirmasi. Mohon tunggu customer menyelesaikan pembayaran.', 'error');
             return;
         }
 
@@ -551,8 +759,8 @@ class PosTerminal extends Component
         $this->voucherDiscount = 0;
         $this->voucherCode = '';
         $this->cashReceived = 0;
-        $this->qrisReference = '';
         $this->cartNote = '';
+        $this->resetQrisState();
     }
 
     // ── Render ──────────────────────────────────────────────────

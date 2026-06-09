@@ -106,9 +106,14 @@ class SalesOrderManager extends Component
         }
     }
 
-    public function updatedItems($value, $name)
+    public function updated($name, $value)
     {
-        if (str_contains($name, 'product_id')) {
+        if ($name === 'sales_quotation_id') {
+            $this->updatedSalesQuotationId($value);
+            return;
+        }
+
+        if (str_contains($name, 'items.') && str_contains($name, '.product_id')) {
             preg_match('/items\.(\d+)\.product_id/', $name, $matches);
             if (isset($matches[1])) {
                 $index = $matches[1];

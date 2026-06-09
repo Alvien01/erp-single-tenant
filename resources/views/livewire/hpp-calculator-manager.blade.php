@@ -2,8 +2,8 @@
     <!-- Header Section -->
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-            <h1 class="text-3xl font-bold font-display text-gray-900">Kalkulator HPP Impor</h1>
-            <p class="text-sm text-gray-500 mt-1">Hitung Harga Pokok Penjualan (HPP) barang impor secara akurat dari China ke Indonesia berdasarkan formula terstandardisasi.</p>
+            <h1 class="text-3xl font-bold font-display text-gray-900">Kalkulator HPP Umum</h1>
+            <p class="text-sm text-gray-500 mt-1">Hitung Harga Pokok Penjualan (HPP) berdasarkan formula: Persediaan Awal + Pembelian Bersih - Persediaan Akhir.</p>
         </div>
         <div class="flex items-center gap-3">
             <button wire:click="create" class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 active:bg-blue-900 focus:outline-none transition ease-in-out duration-150 shadow-sm shadow-blue-200">
@@ -66,95 +66,49 @@
                     @error('nama_barang') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
 
-                <!-- Harga Barang -->
+                <!-- Persediaan Awal -->
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wider flex items-center">
                         <span class="w-2.5 h-2.5 rounded-full bg-blue-500 mr-1.5 inline-block"></span>
-                        Harga Barang (Cina / Supplier)
+                        Persediaan Awal
                     </label>
                     <div class="mt-1 relative rounded-lg shadow-sm">
                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <span class="text-gray-400 text-sm">Rp</span>
                         </div>
-                        <input type="number" wire:model.live="harga_barang" class="pl-9 block w-full border border-gray-300 rounded-lg py-2.5 text-sm font-semibold focus:ring-2 focus:ring-blue-500">
+                        <input type="number" wire:model.live="persediaan_awal" class="pl-9 block w-full border border-gray-300 rounded-lg py-2.5 text-sm font-semibold focus:ring-2 focus:ring-blue-500">
                     </div>
-                    @error('harga_barang') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    @error('persediaan_awal') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
 
-                <!-- Ongkir Supplier ke Forwarder -->
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wider flex items-center">
-                        <span class="w-2.5 h-2.5 rounded-full bg-yellow-500 mr-1.5 inline-block"></span>
-                        Ongkir ke Gudang Forwarder (Cina)
-                    </label>
-                    <div class="mt-1 relative rounded-lg shadow-sm">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <span class="text-gray-400 text-sm">Rp</span>
-                        </div>
-                        <input type="number" wire:model.live="ongkir_supplier_to_forwarder" class="pl-9 block w-full border border-gray-300 rounded-lg py-2.5 text-sm font-semibold focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    @error('ongkir_supplier_to_forwarder') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
-                </div>
-
-                <!-- Tax Refund -->
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wider flex items-center">
-                        <span class="w-2.5 h-2.5 rounded-full bg-rose-500 mr-1.5 inline-block"></span>
-                        Tax Refund (Pengembalian Pajak)
-                    </label>
-                    <div class="mt-1 relative rounded-lg shadow-sm">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <span class="text-gray-400 text-sm">Rp</span>
-                        </div>
-                        <input type="number" wire:model.live="tax_refund" class="pl-9 block w-full border border-gray-300 rounded-lg py-2.5 text-sm font-semibold focus:ring-2 focus:ring-blue-500" placeholder="Negatif untuk mengurangi">
-                    </div>
-                    <span class="text-[10px] text-gray-400 block mt-1">Masukkan angka negatif jika mengurangi biaya (misal: -50000).</span>
-                    @error('tax_refund') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
-                </div>
-
-                <!-- Ongkir ke Indonesia dari Cina -->
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wider flex items-center">
-                        <span class="w-2.5 h-2.5 rounded-full bg-purple-500 mr-1.5 inline-block"></span>
-                        Ongkir Cina ke Indonesia
-                    </label>
-                    <div class="mt-1 relative rounded-lg shadow-sm">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <span class="text-gray-400 text-sm">Rp</span>
-                        </div>
-                        <input type="number" wire:model.live="ongkir_china_to_indonesia" class="pl-9 block w-full border border-gray-300 rounded-lg py-2.5 text-sm font-semibold focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    @error('ongkir_china_to_indonesia') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
-                </div>
-
-                <!-- Pajak Impor / PPN / PPh / VAT -->
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wider flex items-center">
-                        <span class="w-2.5 h-2.5 rounded-full bg-cyan-500 mr-1.5 inline-block"></span>
-                        Pajak Impor / PPN / PPh / VAT
-                    </label>
-                    <div class="mt-1 relative rounded-lg shadow-sm">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <span class="text-gray-400 text-sm">Rp</span>
-                        </div>
-                        <input type="number" wire:model.live="pajak_impor" class="pl-9 block w-full border border-gray-300 rounded-lg py-2.5 text-sm font-semibold focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    @error('pajak_impor') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
-                </div>
-
-                <!-- Margin Keuntungan -->
+                <!-- Pembelian Bersih -->
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wider flex items-center">
                         <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 mr-1.5 inline-block"></span>
-                        Margin / Mark-up Keuntungan
+                        Pembelian Bersih
                     </label>
                     <div class="mt-1 relative rounded-lg shadow-sm">
                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <span class="text-gray-400 text-sm">Rp</span>
                         </div>
-                        <input type="number" wire:model.live="margin" class="pl-9 block w-full border border-gray-300 rounded-lg py-2.5 text-sm font-semibold focus:ring-2 focus:ring-blue-500">
+                        <input type="number" wire:model.live="pembelian_bersih" class="pl-9 block w-full border border-gray-300 rounded-lg py-2.5 text-sm font-semibold focus:ring-2 focus:ring-emerald-500">
                     </div>
-                    @error('margin') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    @error('pembelian_bersih') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                </div>
+
+                <!-- Persediaan Akhir -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wider flex items-center">
+                        <span class="w-2.5 h-2.5 rounded-full bg-rose-500 mr-1.5 inline-block"></span>
+                        Persediaan Akhir
+                    </label>
+                    <div class="mt-1 relative rounded-lg shadow-sm">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <span class="text-gray-400 text-sm">Rp</span>
+                        </div>
+                        <input type="number" wire:model.live="persediaan_akhir" class="pl-9 block w-full border border-gray-300 rounded-lg py-2.5 text-sm font-semibold focus:ring-2 focus:ring-rose-500">
+                    </div>
+                    @error('persediaan_akhir') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                 </div>
             </div>
 
@@ -189,121 +143,36 @@
                     </div>
                     <span class="text-xs text-blue-100 uppercase tracking-widest font-semibold block">Total HPP Terhitung</span>
                     <h3 class="text-3xl font-extrabold font-display mt-2">Rp {{ number_format($total_hpp, 0, ',', '.') }}</h3>
-                    <p class="text-[10px] text-blue-200 mt-3 italic">HPP = Harga + Ongkir Fwd + Tax Refund + Ongkir Indo + Pajak + Margin</p>
-                </div>
-
-                <!-- Cost Components Share (Horizontal Stacked Bar Chart) -->
-                @php
-                    $sumFields = abs($harga_barang) + abs($ongkir_supplier_to_forwarder) + abs($tax_refund) + abs($ongkir_china_to_indonesia) + abs($pajak_impor) + abs($margin);
-                    
-                    $pctHarga = $sumFields > 0 ? round((abs($harga_barang) / $sumFields) * 100) : 0;
-                    $pctOngkirSupp = $sumFields > 0 ? round((abs($ongkir_supplier_to_forwarder) / $sumFields) * 100) : 0;
-                    $pctTax = $sumFields > 0 ? round((abs($tax_refund) / $sumFields) * 100) : 0;
-                    $pctOngkirChina = $sumFields > 0 ? round((abs($ongkir_china_to_indonesia) / $sumFields) * 100) : 0;
-                    $pctPajak = $sumFields > 0 ? round((abs($pajak_impor) / $sumFields) * 100) : 0;
-                    $pctMargin = $sumFields > 0 ? round((abs($margin) / $sumFields) * 100) : 0;
-                @endphp
-
-                <div class="space-y-2">
-                    <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider block">Proporsi Struktur Biaya</span>
-                    
-                    @if($sumFields === 0)
-                        <div class="h-8 bg-gray-100 rounded-lg flex items-center justify-center text-xs text-gray-400 border border-dashed border-gray-200">
-                            Masukkan angka untuk memulai visualisasi
-                        </div>
-                    @else
-                        <!-- Progress Bar Stacked -->
-                        <div class="h-7 w-full rounded-lg overflow-hidden flex bg-gray-100 shadow-inner">
-                            @if($pctHarga > 0)
-                                <div style="width: {{ $pctHarga }}%" class="bg-blue-500 h-full flex items-center justify-center text-[10px] text-white font-bold transition-all duration-300" title="Harga Barang: {{ $pctHarga }}%">
-                                    {{ $pctHarga }}%
-                                </div>
-                            @endif
-                            @if($pctOngkirSupp > 0)
-                                <div style="width: {{ $pctOngkirSupp }}%" class="bg-yellow-500 h-full flex items-center justify-center text-[10px] text-white font-bold transition-all duration-300" title="Ongkir ke Forwarder: {{ $pctOngkirSupp }}%">
-                                    {{ $pctOngkirSupp }}%
-                                </div>
-                            @endif
-                            @if($pctTax > 0)
-                                <div style="width: {{ $pctTax }}%" class="bg-rose-500 h-full flex items-center justify-center text-[10px] text-white font-bold transition-all duration-300" title="Tax Refund: {{ $pctTax }}%">
-                                    {{ $pctTax }}%
-                                </div>
-                            @endif
-                            @if($pctOngkirChina > 0)
-                                <div style="width: {{ $pctOngkirChina }}%" class="bg-purple-500 h-full flex items-center justify-center text-[10px] text-white font-bold transition-all duration-300" title="Ongkir China-Indo: {{ $pctOngkirChina }}%">
-                                    {{ $pctOngkirChina }}%
-                                </div>
-                            @endif
-                            @if($pctPajak > 0)
-                                <div style="width: {{ $pctPajak }}%" class="bg-cyan-500 h-full flex items-center justify-center text-[10px] text-white font-bold transition-all duration-300" title="Pajak Impor: {{ $pctPajak }}%">
-                                    {{ $pctPajak }}%
-                                </div>
-                            @endif
-                            @if($pctMargin > 0)
-                                <div style="width: {{ $pctMargin }}%" class="bg-emerald-500 h-full flex items-center justify-center text-[10px] text-white font-bold transition-all duration-300" title="Margin: {{ $pctMargin }}%">
-                                    {{ $pctMargin }}%
-                                </div>
-                            @endif
-                        </div>
-                    @endif
+                    <p class="text-[10px] text-blue-200 mt-3 italic">HPP = Persediaan Awal + Pembelian Bersih - Persediaan Akhir</p>
                 </div>
 
                 <!-- Breakdown Legends and actual values -->
                 <div class="space-y-2.5 font-sans pt-2">
-                    <!-- Harga Barang -->
+                    <!-- Persediaan Awal -->
                     <div class="flex justify-between items-center text-xs">
                         <div class="flex items-center space-x-2">
                             <span class="w-3 h-3 rounded bg-blue-500 inline-block"></span>
-                            <span class="text-gray-600 font-medium">Harga Barang</span>
+                            <span class="text-gray-600 font-medium">Persediaan Awal</span>
                         </div>
-                        <span class="font-mono font-bold text-gray-800">Rp {{ number_format($harga_barang, 0, ',', '.') }}</span>
+                        <span class="font-mono font-bold text-gray-800">Rp {{ number_format($persediaan_awal, 0, ',', '.') }}</span>
                     </div>
 
-                    <!-- Ongkir Gudang Forwarder -->
+                    <!-- Pembelian Bersih -->
                     <div class="flex justify-between items-center text-xs">
-                        <div class="flex items-center space-x-2">
-                            <span class="w-3 h-3 rounded bg-yellow-500 inline-block"></span>
-                            <span class="text-gray-600 font-medium">Ongkir ke Forwarder</span>
-                        </div>
-                        <span class="font-mono font-bold text-gray-800">Rp {{ number_format($ongkir_supplier_to_forwarder, 0, ',', '.') }}</span>
-                    </div>
-
-                    <!-- Tax Refund -->
-                    <div class="flex justify-between items-center text-xs">
-                        <div class="flex items-center space-x-2">
-                            <span class="w-3 h-3 rounded bg-rose-500 inline-block"></span>
-                            <span class="text-gray-600 font-medium">Tax Refund</span>
-                        </div>
-                        <span class="font-mono font-bold text-gray-800 @if($tax_refund < 0) text-rose-600 @endif">
-                            Rp {{ number_format($tax_refund, 0, ',', '.') }}
-                        </span>
-                    </div>
-
-                    <!-- Ongkir China to Indonesia -->
-                    <div class="flex justify-between items-center text-xs">
-                        <div class="flex items-center space-x-2">
-                            <span class="w-3 h-3 rounded bg-purple-500 inline-block"></span>
-                            <span class="text-gray-600 font-medium">Ongkir Cina-Indo</span>
-                        </div>
-                        <span class="font-mono font-bold text-gray-800">Rp {{ number_format($ongkir_china_to_indonesia, 0, ',', '.') }}</span>
-                    </div>
-
-                    <!-- Pajak Impor -->
-                    <div class="flex justify-between items-center text-xs">
-                        <div class="flex items-center space-x-2">
-                            <span class="w-3 h-3 rounded bg-cyan-500 inline-block"></span>
-                            <span class="text-gray-600 font-medium">Pajak Impor/VAT</span>
-                        </div>
-                        <span class="font-mono font-bold text-gray-800">Rp {{ number_format($pajak_impor, 0, ',', '.') }}</span>
-                    </div>
-
-                    <!-- Margin -->
-                    <div class="flex justify-between items-center text-xs border-b border-gray-100 pb-2">
                         <div class="flex items-center space-x-2">
                             <span class="w-3 h-3 rounded bg-emerald-500 inline-block"></span>
-                            <span class="text-gray-600 font-medium">Margin Keuntungan</span>
+                            <span class="text-gray-600 font-medium">Pembelian Bersih</span>
                         </div>
-                        <span class="font-mono font-bold text-gray-800">Rp {{ number_format($margin, 0, ',', '.') }}</span>
+                        <span class="font-mono font-bold text-gray-800">Rp {{ number_format($pembelian_bersih, 0, ',', '.') }}</span>
+                    </div>
+
+                    <!-- Persediaan Akhir -->
+                    <div class="flex justify-between items-center text-xs border-b border-gray-100 pb-2">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-3 h-3 rounded bg-rose-500 inline-block"></span>
+                            <span class="text-gray-600 font-medium">Persediaan Akhir (Pengurang)</span>
+                        </div>
+                        <span class="font-mono font-bold text-rose-600">- Rp {{ number_format($persediaan_akhir, 0, ',', '.') }}</span>
                     </div>
 
                     <!-- Grand Total Math representation -->
@@ -314,14 +183,14 @@
                 </div>
             </div>
 
-            <!-- Chinese-Indonesian Custom Import Tips Card -->
+            <!-- General HPP Info Card -->
             <div class="bg-gray-50 border border-gray-100 rounded-lg p-4 mt-6">
                 <h4 class="text-xs font-bold text-gray-800 flex items-center mb-1 uppercase tracking-wider font-display">
-                    <svg class="w-4 h-4 mr-1 text-yellow-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
-                    Informasi Importir
+                    <svg class="w-4 h-4 mr-1 text-blue-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                    Informasi Akuntansi
                 </h4>
                 <p class="text-[11px] text-gray-500 leading-relaxed">
-                    Pastikan PPN (11%) dan PPh (2.5% s/d 7.5% untuk API/Non-API) dihitung dengan tepat dari Nilai Impor (CIF + Bea Masuk). Gunakan tax refund dari ekspor China bila didukung oleh supplier forwarder Anda.
+                    Rumus Harga Pokok Penjualan (HPP) = Persediaan Barang Awal + Pembelian Bersih - Persediaan Barang Akhir. Gunakan rumus ini untuk mengetahui total biaya riil dalam satu periode berjalan.
                 </p>
             </div>
         </div>
@@ -350,12 +219,9 @@
                     <thead>
                         <tr class="bg-gray-50 text-left font-semibold text-gray-500 border-b border-gray-200">
                             <th class="py-3 px-4 font-display">Nama Barang</th>
-                            <th class="py-3 px-4 text-right font-display">Harga Barang</th>
-                            <th class="py-3 px-4 text-right font-display">Ongkir Forwarder</th>
-                            <th class="py-3 px-4 text-right font-display">Tax Refund</th>
-                            <th class="py-3 px-4 text-right font-display">Ongkir Indo</th>
-                            <th class="py-3 px-4 text-right font-display">Pajak Impor</th>
-                            <th class="py-3 px-4 text-right font-display">Margin</th>
+                            <th class="py-3 px-4 text-right font-display">Persediaan Awal</th>
+                            <th class="py-3 px-4 text-right font-display">Pembelian Bersih</th>
+                            <th class="py-3 px-4 text-right font-display">Persediaan Akhir</th>
                             <th class="py-3 px-4 text-right font-display text-blue-700 bg-blue-50/50">Total HPP</th>
                             <th class="py-3 px-4 text-center font-display">Aksi</th>
                         </tr>
@@ -366,14 +232,9 @@
                                 <td class="py-3 px-4 font-bold text-gray-900 max-w-[150px] truncate" title="{{ $calc->nama_barang }}">
                                     {{ $calc->nama_barang }}
                                 </td>
-                                <td class="py-3 px-4 text-right font-mono font-medium text-gray-700">Rp {{ number_format($calc->harga_barang, 0, ',', '.') }}</td>
-                                <td class="py-3 px-4 text-right font-mono font-medium text-gray-700">Rp {{ number_format($calc->ongkir_supplier_to_forwarder, 0, ',', '.') }}</td>
-                                <td class="py-3 px-4 text-right font-mono font-medium @if($calc->tax_refund < 0) text-rose-600 @else text-gray-700 @endif">
-                                    Rp {{ number_format($calc->tax_refund, 0, ',', '.') }}
-                                </td>
-                                <td class="py-3 px-4 text-right font-mono font-medium text-gray-700">Rp {{ number_format($calc->ongkir_china_to_indonesia, 0, ',', '.') }}</td>
-                                <td class="py-3 px-4 text-right font-mono font-medium text-gray-700">Rp {{ number_format($calc->pajak_impor, 0, ',', '.') }}</td>
-                                <td class="py-3 px-4 text-right font-mono font-medium text-gray-700">Rp {{ number_format($calc->margin, 0, ',', '.') }}</td>
+                                <td class="py-3 px-4 text-right font-mono font-medium text-gray-700">Rp {{ number_format($calc->persediaan_awal, 0, ',', '.') }}</td>
+                                <td class="py-3 px-4 text-right font-mono font-medium text-gray-700">Rp {{ number_format($calc->pembelian_bersih, 0, ',', '.') }}</td>
+                                <td class="py-3 px-4 text-right font-mono font-medium text-gray-700">Rp {{ number_format($calc->persediaan_akhir, 0, ',', '.') }}</td>
                                 <td class="py-3 px-4 text-right font-mono font-bold text-blue-700 bg-blue-50/20">Rp {{ number_format($calc->total_hpp, 0, ',', '.') }}</td>
                                 <td class="py-3 px-4 text-center space-x-2 whitespace-nowrap">
                                     <button wire:click="loadCalculation({{ $calc->id }})" class="inline-flex items-center px-2.5 py-1 text-[10px] font-semibold rounded bg-blue-50 text-blue-700 hover:bg-blue-100 transition duration-150 focus:outline-none">
@@ -434,76 +295,40 @@
                             </div>
 
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <!-- Harga Barang -->
+                                <!-- Persediaan Awal -->
                                 <div>
-                                    <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wider">Harga Barang</label>
+                                    <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wider">Persediaan Awal</label>
                                     <div class="mt-1 relative rounded-lg shadow-sm">
                                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                             <span class="text-gray-400 text-sm">Rp</span>
                                         </div>
-                                        <input type="number" wire:model.live="harga_barang" class="pl-9 block w-full border border-gray-300 rounded-lg py-2 sm:text-sm focus:ring-2 focus:ring-blue-500">
+                                        <input type="number" wire:model.live="persediaan_awal" class="pl-9 block w-full border border-gray-300 rounded-lg py-2 sm:text-sm focus:ring-2 focus:ring-blue-500">
                                     </div>
-                                    @error('harga_barang') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    @error('persediaan_awal') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
 
-                                <!-- Ongkir ke Forwarder -->
+                                <!-- Pembelian Bersih -->
                                 <div>
-                                    <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wider">Ongkir ke Gudang Forwarder</label>
+                                    <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wider">Pembelian Bersih</label>
                                     <div class="mt-1 relative rounded-lg shadow-sm">
                                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                             <span class="text-gray-400 text-sm">Rp</span>
                                         </div>
-                                        <input type="number" wire:model.live="ongkir_supplier_to_forwarder" class="pl-9 block w-full border border-gray-300 rounded-lg py-2 sm:text-sm focus:ring-2 focus:ring-blue-500">
+                                        <input type="number" wire:model.live="pembelian_bersih" class="pl-9 block w-full border border-gray-300 rounded-lg py-2 sm:text-sm focus:ring-2 focus:ring-blue-500">
                                     </div>
-                                    @error('ongkir_supplier_to_forwarder') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    @error('pembelian_bersih') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
 
-                                <!-- Tax Refund -->
+                                <!-- Persediaan Akhir -->
                                 <div>
-                                    <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wider">Tax Refund (Ekspor China)</label>
+                                    <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wider">Persediaan Akhir</label>
                                     <div class="mt-1 relative rounded-lg shadow-sm">
                                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                             <span class="text-gray-400 text-sm">Rp</span>
                                         </div>
-                                        <input type="number" wire:model.live="tax_refund" class="pl-9 block w-full border border-gray-300 rounded-lg py-2 sm:text-sm focus:ring-2 focus:ring-blue-500">
+                                        <input type="number" wire:model.live="persediaan_akhir" class="pl-9 block w-full border border-gray-300 rounded-lg py-2 sm:text-sm focus:ring-2 focus:ring-blue-500">
                                     </div>
-                                    @error('tax_refund') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
-                                </div>
-
-                                <!-- Ongkir China-Indo -->
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wider">Ongkir Cina ke Indonesia</label>
-                                    <div class="mt-1 relative rounded-lg shadow-sm">
-                                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <span class="text-gray-400 text-sm">Rp</span>
-                                        </div>
-                                        <input type="number" wire:model.live="ongkir_china_to_indonesia" class="pl-9 block w-full border border-gray-300 rounded-lg py-2 sm:text-sm focus:ring-2 focus:ring-blue-500">
-                                    </div>
-                                    @error('ongkir_china_to_indonesia') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
-                                </div>
-
-                                <!-- Pajak Impor -->
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wider">Pajak Impor / VAT / PPN</label>
-                                    <div class="mt-1 relative rounded-lg shadow-sm">
-                                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <span class="text-gray-400 text-sm">Rp</span>
-                                        </div>
-                                        <input type="number" wire:model.live="pajak_impor" class="pl-9 block w-full border border-gray-300 rounded-lg py-2 sm:text-sm focus:ring-2 focus:ring-blue-500">
-                                    </div>
-                                    @error('pajak_impor') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
-                                </div>
-
-                                <!-- Margin -->
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wider">Margin Keuntungan</label>
-                                    <div class="mt-1 relative rounded-lg shadow-sm">
-                                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <span class="text-gray-400 text-sm">Rp</span>
-                                        </div>
-                                        <input type="number" wire:model.live="margin" class="pl-9 block w-full border border-gray-300 rounded-lg py-2 sm:text-sm focus:ring-2 focus:ring-blue-500">
-                                    </div>
-                                    @error('margin') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    @error('persediaan_akhir') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
                             </div>
 

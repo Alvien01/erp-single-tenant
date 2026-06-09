@@ -28,6 +28,11 @@ class SalesQuotationManager extends Component
     // Item rows
     public $items = [];
 
+    // Inline Customer Search & Create
+    public $customerSearch = '';
+    public $showCustomerDropdown = false;
+    public $selectedCustomerName = '';
+
     protected $rules = [
         'customer_id' => 'required|exists:customers,id',
         'valid_until' => 'required|date',
@@ -46,6 +51,9 @@ class SalesQuotationManager extends Component
     {
         $this->sq_id = null;
         $this->customer_id = '';
+        $this->customerSearch = '';
+        $this->selectedCustomerName = '';
+        $this->showCustomerDropdown = false;
         $this->valid_until = now()->addDays(14)->format('Y-m-d');
         $this->status = 'draft';
         $this->items = [
@@ -70,6 +78,58 @@ class SalesQuotationManager extends Component
         $this->isOpen = false;
     }
 
+    public function updatedCustomerSearch()
+    {
+        $this->showCustomerDropdown = true;
+        // Clear selection when user types
+        $this->customer_id = '';
+        $this->selectedCustomerName = '';
+    }
+
+    public function selectCustomer($id)
+    {
+        $customer = Customer::find($id);
+        if ($customer) {
+            $this->customer_id = $customer->id;
+            $this->selectedCustomerName = $customer->name . ($customer->company_name ? ' (' . $customer->company_name . ')' : '');
+            $this->customerSearch = '';
+            $this->showCustomerDropdown = false;
+        }
+    }
+
+    public function clearCustomer()
+    {
+        $this->customer_id = '';
+        $this->selectedCustomerName = '';
+        $this->customerSearch = '';
+        $this->showCustomerDropdown = false;
+    }
+
+    public function createAndSelectCustomer()
+    {
+        $name = trim($this->customerSearch);
+        if (empty($name)) {
+            return;
+        }
+
+        $customer = Customer::create([
+            'name' => $name,
+            'type' => 'individual',
+        ]);
+
+        ActivityLog::create([
+            'user_id' => auth()->id() ?? 1,
+            'module' => 'Master Data',
+            'action' => 'Quick Create Customer',
+            'description' => 'Customer "' . $customer->name . '" created via Sales Quotation.'
+        ]);
+
+        $this->customer_id = $customer->id;
+        $this->selectedCustomerName = $customer->name;
+        $this->customerSearch = '';
+        $this->showCustomerDropdown = false;
+    }
+
     public function addItem()
     {
         $this->items[] = ['product_id' => '', 'qty' => 1, 'price' => 0, 'discount' => 0];
@@ -81,9 +141,9 @@ class SalesQuotationManager extends Component
         $this->items = array_values($this->items);
     }
 
-    public function updatedItems($value, $name)
+    public function updated($name, $value)
     {
-        if (str_contains($name, 'product_id')) {
+        if (str_contains($name, 'items.') && str_contains($name, '.product_id')) {
             preg_match('/items\.(\d+)\.product_id/', $name, $matches);
             if (isset($matches[1])) {
                 $index = $matches[1];
@@ -146,9 +206,12 @@ class SalesQuotationManager extends Component
 
     public function edit($id)
     {
-        $sq = SalesQuotation::with('items')->findOrFail($id);
+        $sq = SalesQuotation::with(['items', 'customer'])->findOrFail($id);
         $this->sq_id = $sq->id;
         $this->customer_id = $sq->customer_id;
+        $this->selectedCustomerName = $sq->customer->name . ($sq->customer->company_name ? ' (' . $sq->customer->company_name . ')' : '');
+        $this->customerSearch = '';
+        $this->showCustomerDropdown = false;
         $this->valid_until = $sq->valid_until;
         $this->status = $sq->status;
         
@@ -194,9 +257,19 @@ class SalesQuotationManager extends Component
             })->orWhere('sq_number', 'like', '%' . $this->search . '%');
         }
 
+        // Filter customers for inline search
+        $filteredCustomers = collect();
+        if ($this->showCustomerDropdown && $this->customerSearch) {
+            $filteredCustomers = Customer::where('name', 'like', '%' . $this->customerSearch . '%')
+                ->orWhere('company_name', 'like', '%' . $this->customerSearch . '%')
+                ->orderBy('name')
+                ->limit(10)
+                ->get();
+        }
+
         return view('livewire.sales-quotation-manager', [
             'quotations' => $query->orderBy('created_at', 'desc')->paginate(10),
-            'customers' => Customer::all(),
+            'filteredCustomers' => $filteredCustomers,
             'products' => Product::all(),
         ]);
     }

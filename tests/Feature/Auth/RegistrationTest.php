@@ -25,9 +25,7 @@ class RegistrationTest extends TestCase
             ->set('name', 'Test User')
             ->set('email', 'test@example.com')
             ->set('password', 'password')
-            ->set('password_confirmation', 'password')
-            ->set('company_name', 'Test Company')
-            ->set('slug', 'test-company');
+            ->set('password_confirmation', 'password');
 
         $component->call('register');
 
