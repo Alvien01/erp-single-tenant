@@ -20,16 +20,6 @@
                 <a href="#gallery" class="hover:text-cyan-400 transition">Nodes</a>
                 <a href="#contact" class="hover:text-cyan-400 transition">Terminal</a>
             </nav>
-
-            <div class="flex items-center space-x-4">
-                @if (Route::has('login'))
-                    @auth
-                        <a href="{{ url('/dashboard') }}" class="px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-slate-950 font-bold rounded-lg text-sm transition transform hover:-translate-y-0.5">Initialize</a>
-                    @else
-                        <a href="{{ route('login') }}" class="px-5 py-2.5 text-slate-300 hover:text-cyan-400 text-sm font-semibold transition">Terminal Login</a>
-                    @endauth
-                @endif
-            </div>
         </div>
     </header>
 

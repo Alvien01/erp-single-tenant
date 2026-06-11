@@ -108,17 +108,12 @@
         <div class="bg-decoration bg-decoration-3"></div>
 
         <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 relative z-10">
-            <!-- Brand Header -->
             <div class="mb-8 text-center">
-                <a href="/" wire:navigate class="inline-flex items-center space-x-3 group">
-                    <div class="w-11 h-11 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20 group-hover:shadow-blue-600/30 transition-shadow duration-300">
-                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                        </svg>
-                    </div>
+                <a href="/" wire:navigate class="flex flex-col items-center space-y-4 group">
                     <span class="brand-text text-2xl font-bold">
-                        <span class="text-blue-600">Wikasa</span><span class="text-gray-900">Mebel</span>
+                        <span class="text-blue-600">CV </span><span class="text-gray-900">RADI AMARTHA MAHARDIKA</span>
                     </span>
+                    <img src="{{ asset('assets/logo.png') }}" alt="Logo" class="h-20 w-auto object-contain transition-transform duration-300 group-hover:scale-105">
                 </a>
                 <p class="mt-3 text-sm text-gray-500 font-medium">Enterprise Resource Planning System</p>
             </div>
@@ -131,7 +126,7 @@
             <!-- Footer -->
             <div class="mt-8 text-center">
                 <p class="text-xs text-gray-400 font-medium">
-                    &copy; {{ date('Y') }} {{ config('app.name', 'Laravel ERP') }}. All rights reserved.
+                    &copy; {{ date('Y') }} CV RADI AMAR MAHARDIKA. All rights reserved.
                 </p>
             </div>
         </div>

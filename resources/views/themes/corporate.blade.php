@@ -15,16 +15,6 @@
                 <a href="#gallery" class="hover:text-[#116466] transition">Portfolio</a>
                 <a href="#contact" class="hover:text-[#116466] transition">Contact</a>
             </nav>
-
-            <div class="flex items-center space-x-4">
-                @if (Route::has('login'))
-                    @auth
-                        <a href="{{ url('/dashboard') }}" class="px-6 py-2.5 bg-[#116466] text-white hover:bg-[#0F5A5C] rounded font-semibold text-sm transition">Dashboard</a>
-                    @else
-                        <a href="{{ route('login') }}" class="px-5 py-2.5 text-[#2C3531] hover:text-[#116466] text-sm font-semibold transition">Login</a>
-                    @endauth
-                @endif
-            </div>
         </div>
     </header>
 

@@ -20,19 +20,6 @@
                 <a href="#testimonials" class="hover:text-blue-600 transition">Testimonials</a>
                 <a href="#contact" class="hover:text-blue-600 transition">Contact</a>
             </nav>
-
-            <div class="flex items-center space-x-4">
-                @if (Route::has('login'))
-                    @auth
-                        <a href="{{ url('/dashboard') }}" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-sm font-semibold shadow-lg shadow-blue-500/20 transition transform hover:-translate-y-0.5">Dashboard</a>
-                    @else
-                        <a href="{{ route('login') }}" class="px-5 py-2.5 text-slate-700 hover:text-blue-600 text-sm font-semibold transition">Log in</a>
-                        @if (Route::has('register'))
-                            <a href="{{ route('register') }}" class="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-full text-sm font-semibold shadow-lg transition transform hover:-translate-y-0.5">Register</a>
-                        @endif
-                    @endauth
-                @endif
-            </div>
         </div>
     </header>
 
