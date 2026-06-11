@@ -116,18 +116,21 @@
         </div>
         
         <!-- Accounting Dropdown -->
-        <div x-data="{ expanded: {{ request()->routeIs(['accounting', 'bank-reconciliation', 'taxes', 'currencies', 'budgets', 'approvals', 'advanced-accounting']) ? 'true' : 'false' }} }" class="pt-1">
+        <div x-data="{ expanded: {{ request()->routeIs(['accounting', 'cash-bank', 'accounts-receivable', 'accounts-payable', 'bank-reconciliation', 'taxes', 'currencies', 'budgets', 'approvals', 'advanced-accounting']) ? 'true' : 'false' }} }" class="pt-1">
             <button @click="expanded = !expanded" class="w-full flex items-center justify-between px-4 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                 <div class="flex items-center">
                     <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
-                    Accounting
+                    Accounting & SIA
                 </div>
                 <svg :class="{'rotate-180': expanded}" class="w-4 h-4 text-gray-400 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
             </button>
             <div x-show="expanded" x-collapse class="pl-11 pr-4 py-1 space-y-1">
                 <a href="{{ route('accounting') }}" class="block px-2 py-1.5 text-sm rounded-md {{ request()->routeIs('accounting') ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">Journal Ledger</a>
+                <a href="{{ route('cash-bank') }}" class="block px-2 py-1.5 text-sm rounded-md {{ request()->routeIs('cash-bank') ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">Kas & Bank</a>
+                <a href="{{ route('accounts-receivable') }}" class="block px-2 py-1.5 text-sm rounded-md {{ request()->routeIs('accounts-receivable') ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">Piutang (AR)</a>
+                <a href="{{ route('accounts-payable') }}" class="block px-2 py-1.5 text-sm rounded-md {{ request()->routeIs('accounts-payable') ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">Hutang (AP)</a>
                 <a href="{{ route('bank-reconciliation') }}" class="block px-2 py-1.5 text-sm rounded-md {{ request()->routeIs('bank-reconciliation') ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">Bank Reconciliation</a>
-                <a href="{{ route('taxes') }}" class="block px-2 py-1.5 text-sm rounded-md {{ request()->routeIs('taxes') ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">Tax Management</a>
+                <a href="{{ route('taxes') }}" class="block px-2 py-1.5 text-sm rounded-md {{ request()->routeIs('taxes') ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">Tax Management & e-Faktur</a>
                 <a href="{{ route('currencies') }}" class="block px-2 py-1.5 text-sm rounded-md {{ request()->routeIs('currencies') ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">Multi-Currency</a>
                 <a href="{{ route('budgets') }}" class="block px-2 py-1.5 text-sm rounded-md {{ request()->routeIs('budgets') ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">Budgeting</a>
                 <a href="{{ route('approvals') }}" class="block px-2 py-1.5 text-sm rounded-md {{ request()->routeIs('approvals') ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">Workflow Approvals</a>

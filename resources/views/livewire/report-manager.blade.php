@@ -57,6 +57,9 @@
             <button wire:click="$set('activeTab', 'aging')" class="py-4 px-1 border-b-2 font-medium text-sm transition-colors cursor-pointer whitespace-nowrap {{ $activeTab === 'aging' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
                 AR/AP Aging
             </button>
+            <button wire:click="$set('activeTab', 'equity')" class="py-4 px-1 border-b-2 font-medium text-sm transition-colors cursor-pointer whitespace-nowrap {{ $activeTab === 'equity' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+                Changes in Equity
+            </button>
         </nav>
     </div>
 
@@ -631,6 +634,43 @@
                             <span class="block text-xs text-rose-600 font-bold">Total Payables</span>
                             <span class="block text-sm font-bold font-mono text-rose-700 mt-1">Rp {{ number_format($apAgingSum = $aging['ap']['total'], 0) }}</span>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @elseif($activeTab === 'equity')
+        <!-- Statement of Changes in Equity View -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8 max-w-4xl mx-auto font-sans">
+            <div class="text-center pb-6 border-b border-gray-200">
+                <h2 class="text-2xl font-bold font-display text-gray-900">Statement of Changes in Equity</h2>
+                <p class="text-sm text-gray-500 mt-1">Period: {{ $start_date }} to {{ $end_date }}</p>
+            </div>
+
+            <div class="mt-8 space-y-6">
+                <div class="flex justify-between items-center text-sm border-b border-gray-200 pb-3">
+                    <span class="font-semibold text-gray-700">Beginning Equity Balance (as of {{ $start_date }})</span>
+                    <span class="font-mono font-bold text-gray-900">Rp {{ number_format($equity['beginning_equity'], 0, ',', '.') }}</span>
+                </div>
+
+                <div class="flex justify-between items-center text-sm border-b border-gray-200 pb-3 text-emerald-700">
+                    <span class="font-semibold">Additional Capital Investment / Equity Additions</span>
+                    <span class="font-mono font-bold">+Rp {{ number_format($equity['additional_capital'], 0, ',', '.') }}</span>
+                </div>
+
+                <div class="flex justify-between items-center text-sm border-b border-gray-200 pb-3 {{ $equity['net_profit'] >= 0 ? 'text-emerald-700' : 'text-red-700' }}">
+                    <span class="font-semibold">Net Profit / (Loss) for the Period</span>
+                    <span class="font-mono font-bold">{{ $equity['net_profit'] >= 0 ? '+' : '' }}Rp {{ number_format($equity['net_profit'], 0, ',', '.') }}</span>
+                </div>
+
+                <div class="flex justify-between items-center text-sm border-b border-gray-200 pb-3 text-red-600">
+                    <span class="font-semibold">Prive / Dividends / Drawings</span>
+                    <span class="font-mono font-bold">-Rp {{ number_format($equity['drawings'], 0, ',', '.') }}</span>
+                </div>
+
+                <div class="pt-6 border-t-2 border-double border-gray-300">
+                    <div class="flex items-center justify-between text-xl font-bold text-blue-900 p-4 bg-gray-50 rounded-lg">
+                        <span>ENDING CAPITAL / EQUITY BALANCE (as of {{ $end_date }})</span>
+                        <span class="font-mono">Rp {{ number_format($equity['ending_equity'], 0, ',', '.') }}</span>
                     </div>
                 </div>
             </div>

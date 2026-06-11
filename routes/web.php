@@ -104,6 +104,18 @@ Route::get('accounting', AccountingManager::class)
     ->middleware(['auth', 'verified'])
     ->name('accounting');
 
+Route::get('cash-bank', \App\Livewire\CashBankManager::class)
+    ->middleware(['auth', 'verified'])
+    ->name('cash-bank');
+
+Route::get('accounts-receivable', \App\Livewire\AccountsReceivableManager::class)
+    ->middleware(['auth', 'verified'])
+    ->name('accounts-receivable');
+
+Route::get('accounts-payable', \App\Livewire\AccountsPayableManager::class)
+    ->middleware(['auth', 'verified'])
+    ->name('accounts-payable');
+
 Route::get('settings', SettingsManager::class)
     ->middleware(['auth', 'verified'])
     ->name('settings');

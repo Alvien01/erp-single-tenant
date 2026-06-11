@@ -170,35 +170,73 @@
                             <th class="py-3.5 px-6">Employee</th>
                             <th class="py-3.5 px-6 text-right">Basic Salary</th>
                             <th class="py-3.5 px-6 text-right">Allowances</th>
-                            <th class="py-3.5 px-6 text-right">Net Paid</th>
+                            <th class="py-3.5 px-6 text-right">Deductions</th>
+                            <th class="py-3.5 px-6 text-right">Take Home Pay</th>
                             <th class="py-3.5 px-6 text-center">Status</th>
                             <th class="py-3.5 px-6 text-center">Action</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
                         @forelse($payrolls as $pr)
-                            <tr class="hover:bg-gray-50 transition duration-150">
+                            <tr class="hover:bg-gray-50 transition duration-150" x-data="{ showSlip: false }">
                                 <td class="py-4 px-6 font-mono text-gray-900">{{ $pr->period }}</td>
                                 <td class="py-4 px-6 font-medium text-gray-700">{{ $pr->employee->name }}</td>
                                 <td class="py-4 px-6 text-right font-mono">Rp {{ number_format($pr->basic_salary, 0, ',', '.') }}</td>
                                 <td class="py-4 px-6 text-right font-mono text-emerald-600">+Rp {{ number_format($pr->allowances, 0, ',', '.') }}</td>
+                                <td class="py-4 px-6 text-right font-mono text-red-600">-Rp {{ number_format($pr->deductions, 0, ',', '.') }}</td>
                                 <td class="py-4 px-6 text-right font-mono font-bold text-gray-900">Rp {{ number_format($pr->total_salary, 0, ',', '.') }}</td>
                                 <td class="py-4 px-6 text-center">
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $pr->status === 'paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-800' }}">
                                         {{ ucfirst($pr->status) }}
                                     </span>
                                 </td>
-                                <td class="py-4 px-6 text-center">
+                                <td class="py-4 px-6 text-center space-x-2">
                                     @if($pr->status === 'draft')
-                                        <button wire:click="processPayment({{ $pr->id }})" class="text-blue-600 hover:text-blue-900 font-medium cursor-pointer">Pay Salary</button>
+                                        <button wire:click="processPayment({{ $pr->id }})" class="text-blue-600 hover:text-blue-900 font-medium cursor-pointer">Pay</button>
                                     @else
-                                        <span class="text-gray-400">Completed</span>
+                                        <span class="text-gray-400">Paid</span>
                                     @endif
                                 </td>
                             </tr>
+                            <!-- Expandable Slip Gaji Detail Row -->
+                            @if($pr->components && $pr->components->count() > 0)
+                            <tr class="bg-blue-50 bg-opacity-50">
+                                <td colspan="8" class="py-0 px-6">
+                                    <div x-data="{ open: false }">
+                                        <button @click="open = !open" class="text-xs text-blue-600 font-semibold py-2 cursor-pointer hover:underline">
+                                            <span x-text="open ? '▾ Hide Slip Gaji Detail' : '▸ View Slip Gaji Detail'"></span>
+                                        </button>
+                                        <div x-show="open" x-transition class="pb-4">
+                                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
+                                                <!-- Allowances -->
+                                                <div>
+                                                    <h5 class="text-xs font-bold text-emerald-700 uppercase mb-2">Allowances</h5>
+                                                    @foreach($pr->components->where('type', 'allowance') as $comp)
+                                                        <div class="flex justify-between text-xs text-gray-600 border-b border-gray-100 py-1">
+                                                            <span>{{ $comp->name }}</span>
+                                                            <span class="font-mono text-emerald-600">+Rp {{ number_format($comp->amount, 0, ',', '.') }}</span>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                                <!-- Deductions -->
+                                                <div>
+                                                    <h5 class="text-xs font-bold text-red-700 uppercase mb-2">Deductions</h5>
+                                                    @foreach($pr->components->where('type', 'deduction') as $comp)
+                                                        <div class="flex justify-between text-xs text-gray-600 border-b border-gray-100 py-1">
+                                                            <span>{{ $comp->name }}</span>
+                                                            <span class="font-mono text-red-600">-Rp {{ number_format($comp->amount, 0, ',', '.') }}</span>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            @endif
                         @empty
                             <tr>
-                                <td colspan="7" class="py-12 text-center text-gray-500">
+                                <td colspan="8" class="py-12 text-center text-gray-500">
                                     No payroll records generated yet.
                                 </td>
                             </tr>

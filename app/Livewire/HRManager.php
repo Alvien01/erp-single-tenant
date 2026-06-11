@@ -209,19 +209,62 @@ class HRManager extends Component
             }
 
             $basic = floatval($emp->salary);
-            $allowance = $attendanceCount * 50000; 
-            $deduction = 0; 
-            $net = $basic + $allowance - $deduction;
+            
+            // === ALLOWANCES ===
+            $transportAllowance = $attendanceCount * 30000;  // Rp30k/day transport
+            $mealAllowance = $attendanceCount * 25000;       // Rp25k/day meal
+            $totalAllowance = $transportAllowance + $mealAllowance;
 
-            Payroll::query()->create([
+            // === DEDUCTIONS (Indonesian Standards) ===
+            // BPJS Ketenagakerjaan (Employee Share)
+            $bpjsJht = $basic * 0.02;       // JHT 2% employee share
+            $bpjsJp  = $basic * 0.01;       // JP 1% employee share
+            $bpjsJkk = $basic * 0.0024;     // JKK 0.24% (typically employer, included for transparency)
+            $bpjsJkm = $basic * 0.003;      // JKM 0.3% (typically employer)
+            $bpjsKetenagakerjaan = $bpjsJht + $bpjsJp; // Employee-borne
+            
+            // BPJS Kesehatan (Employee Share: 1% of salary)
+            $bpjsKesehatan = $basic * 0.01;
+            
+            // PPh 21 Estimation (Simplified progressive rate)
+            $grossAnnual = ($basic + $totalAllowance) * 12;
+            $ptkpStatus = 54000000; // PTKP TK/0 (single, no dependents) - base assumption
+            $taxableIncome = max(0, $grossAnnual - $ptkpStatus - ($bpjsKetenagakerjaan * 12) - ($bpjsKesehatan * 12));
+            $pph21Annual = $this->calculatePph21($taxableIncome);
+            $pph21Monthly = round($pph21Annual / 12);
+            
+            $totalDeduction = $bpjsKetenagakerjaan + $bpjsKesehatan + $pph21Monthly;
+            $net = $basic + $totalAllowance - $totalDeduction;
+
+            $payroll = Payroll::query()->create([
                 'employee_id' => $emp->id,
                 'period' => $periodStr,
                 'basic_salary' => $basic,
-                'allowances' => $allowance,
-                'deductions' => $deduction,
+                'allowances' => $totalAllowance,
+                'deductions' => $totalDeduction,
                 'total_salary' => $net,
                 'status' => 'draft',
             ]);
+            
+            // Save detailed payroll components for slip gaji
+            $components = [
+                ['name' => 'Tunjangan Transport', 'type' => 'allowance', 'amount' => $transportAllowance],
+                ['name' => 'Tunjangan Makan', 'type' => 'allowance', 'amount' => $mealAllowance],
+                ['name' => 'BPJS Ketenagakerjaan (JHT 2%)', 'type' => 'deduction', 'amount' => $bpjsJht],
+                ['name' => 'BPJS Ketenagakerjaan (JP 1%)', 'type' => 'deduction', 'amount' => $bpjsJp],
+                ['name' => 'BPJS Kesehatan (1%)', 'type' => 'deduction', 'amount' => $bpjsKesehatan],
+                ['name' => 'PPh 21', 'type' => 'deduction', 'amount' => $pph21Monthly],
+            ];
+            
+            foreach ($components as $comp) {
+                \App\Models\PayrollComponent::create([
+                    'payroll_id' => $payroll->id,
+                    'name' => $comp['name'],
+                    'type' => $comp['type'],
+                    'amount' => $comp['amount'],
+                ]);
+            }
+
             $count++;
         }
 
@@ -229,11 +272,39 @@ class HRManager extends Component
             'user_id' => Auth::id() ?? 1,
             'module' => 'HR',
             'action' => 'Generate Payroll',
-            'description' => 'Generated payroll draft for ' . $count . ' employees for period ' . $periodStr
+            'description' => 'Generated payroll draft (with PPh 21, BPJS) for ' . $count . ' employees for period ' . $periodStr
         ]);
 
-        session()->flash('success', 'Payroll draft generated successfully for ' . $count . ' records.');
+        session()->flash('success', 'Payroll draft generated successfully for ' . $count . ' records (incl. PPh 21 & BPJS deductions).');
         $this->closeModal();
+    }
+
+    /**
+     * Calculate PPh 21 using Indonesian progressive tax brackets (UU HPP 2022).
+     * Brackets: 0-60M: 5%, 60M-250M: 15%, 250M-500M: 25%, 500M-5B: 30%, >5B: 35%
+     */
+    private function calculatePph21($taxableIncome)
+    {
+        if ($taxableIncome <= 0) return 0;
+
+        $tax = 0;
+        $brackets = [
+            [60000000, 0.05],
+            [250000000 - 60000000, 0.15],
+            [500000000 - 250000000, 0.25],
+            [5000000000 - 500000000, 0.30],
+            [PHP_INT_MAX, 0.35],
+        ];
+
+        $remaining = $taxableIncome;
+        foreach ($brackets as [$limit, $rate]) {
+            if ($remaining <= 0) break;
+            $taxable = min($remaining, $limit);
+            $tax += $taxable * $rate;
+            $remaining -= $taxable;
+        }
+
+        return round($tax);
     }
 
     public function processPayment($id)
@@ -370,7 +441,7 @@ class HRManager extends Component
         }
 
         $attQuery = Attendance::with('employee')->orderBy('date', 'desc');
-        $payrolls = Payroll::with('employee')->orderBy('period', 'desc')->paginate(10);
+        $payrolls = Payroll::with(['employee', 'components'])->orderBy('period', 'desc')->paginate(10);
         
         $departments = Department::orderBy('name')->paginate(10);
         $leaves = Leave::with('employee')->orderBy('created_at', 'desc')->paginate(10);

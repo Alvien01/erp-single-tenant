@@ -6,9 +6,15 @@ use Illuminate\Database\Eloquent\Model;
 
 class Payroll extends Model
 {
+    protected $guarded = [];
 
     public function employee()
     {
         return $this->belongsTo(Employee::class);
+    }
+
+    public function components()
+    {
+        return $this->hasMany(PayrollComponent::class);
     }
 }

@@ -317,6 +317,49 @@ class ReportManager extends Component
         ];
     }
 
+    public function getEquityStatementData()
+    {
+        $pl = $this->getProfitLossData();
+        $netProfit = $pl['net_profit'];
+
+        // Beginning Capital (Balance of Equity accounts before start_date)
+        $equityAccountIds = Account::where('type', 'equity')->pluck('id');
+        
+        $creditsBefore = Journal::whereIn('account_id', $equityAccountIds)
+            ->where('transaction_date', '<', $this->start_date)
+            ->where('type', 'credit')
+            ->sum('amount');
+            
+        $debitsBefore = Journal::whereIn('account_id', $equityAccountIds)
+            ->where('transaction_date', '<', $this->start_date)
+            ->where('type', 'debit')
+            ->sum('amount');
+
+        $beginningEquity = $creditsBefore - $debitsBefore;
+
+        // Additional capital during the period (credits to equity accounts)
+        $additionalCapital = Journal::whereIn('account_id', $equityAccountIds)
+            ->whereBetween('transaction_date', [$this->start_date, $this->end_date])
+            ->where('type', 'credit')
+            ->sum('amount');
+
+        // Drawings / Prive during the period (debits to equity/drawings accounts)
+        $drawings = Journal::whereIn('account_id', $equityAccountIds)
+            ->whereBetween('transaction_date', [$this->start_date, $this->end_date])
+            ->where('type', 'debit')
+            ->sum('amount');
+
+        $endingEquity = $beginningEquity + $additionalCapital + $netProfit - $drawings;
+
+        return [
+            'beginning_equity' => $beginningEquity,
+            'additional_capital' => $additionalCapital,
+            'net_profit' => $netProfit,
+            'drawings' => $drawings,
+            'ending_equity' => $endingEquity,
+        ];
+    }
+
     public function render()
     {
         return view('livewire.report-manager', [
@@ -331,6 +374,7 @@ class ReportManager extends Component
             'cf' => $this->getCashFlowData(),
             'tb' => $this->getTrialBalanceData(),
             'aging' => $this->getAgingData(),
+            'equity' => $this->getEquityStatementData(),
         ]);
     }
 }

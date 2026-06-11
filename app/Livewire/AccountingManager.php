@@ -9,19 +9,38 @@ use App\Models\Journal;
 use App\Models\Asset;
 use App\Models\AssetDepreciation;
 use App\Models\ActivityLog;
+use App\Models\PeriodClosing;
+use Illuminate\Support\Facades\DB;
 
 class AccountingManager extends Component
 {
     use WithPagination;
 
     public $search = '';
-    public $activeTab = 'coa';
+    public $activeTab = 'coa'; // coa, journals, ledger_detail, closing, assets
+    
+    // Journal Entry fields
     public $journal_date;
     public $description;
     public $debit_account_id;
     public $credit_account_id;
     public $amount = 0;
+    public $journal_type = 'general'; // general, adjustment, closing
     public $isOpen = false;
+
+    // Filter properties
+    public $filter_journal_type = '';
+
+    // Ledger Detail properties
+    public $selected_account_id;
+    public $ledger_start_date;
+    public $ledger_end_date;
+
+    // Closing Period properties
+    public $closing_date;
+    public $closing_note;
+
+    // Asset fields
     public $isOpenAssetModal = false;
     public $asset_code;
     public $asset_name;
@@ -30,6 +49,14 @@ class AccountingManager extends Component
     public $asset_purchase_price;
     public $asset_useful_life = 48; 
     public $asset_residual_value = 0;
+
+    public function mount()
+    {
+        $this->journal_date = now()->format('Y-m-d');
+        $this->ledger_start_date = now()->startOfMonth()->format('Y-m-d');
+        $this->ledger_end_date = now()->endOfMonth()->format('Y-m-d');
+        $this->closing_date = now()->endOfMonth()->format('Y-m-d');
+    }
 
     public function openModal()
     {
@@ -49,6 +76,7 @@ class AccountingManager extends Component
         $this->debit_account_id = '';
         $this->credit_account_id = '';
         $this->amount = 0;
+        $this->journal_type = 'general';
     }
 
     public function createJournal()
@@ -65,9 +93,9 @@ class AccountingManager extends Component
             'debit_account_id' => 'required|exists:accounts,id|different:credit_account_id',
             'credit_account_id' => 'required|exists:accounts,id',
             'amount' => 'required|numeric|min:1000',
+            'journal_type' => 'required|in:general,adjustment,closing',
         ]);
         
-        // Generate robust, collision-free unique journal reference number
         $todayPrefix = 'JV-' . now()->format('Ymd') . '-';
         $lastJournal = Journal::where('reference_number', 'like', $todayPrefix . '%')
             ->orderBy('reference_number', 'desc')
@@ -90,6 +118,7 @@ class AccountingManager extends Component
             'reference_number' => $ref,
             'amount' => $this->amount,
             'type' => 'debit',
+            'journal_type' => $this->journal_type,
         ]);
 
         Journal::create([
@@ -99,17 +128,19 @@ class AccountingManager extends Component
             'reference_number' => $ref,
             'amount' => $this->amount,
             'type' => 'credit',
+            'journal_type' => $this->journal_type,
         ]);
 
+        // Adjust Account Balances
         $debitAcc = Account::find($this->debit_account_id);
-        if ($debitAcc->type === 'asset' || $debitAcc->type === 'expense') {
+        if (in_array($debitAcc->type, ['asset', 'expense'])) {
             $debitAcc->increment('balance', $this->amount);
         } else {
             $debitAcc->decrement('balance', $this->amount);
         }
 
         $creditAcc = Account::find($this->credit_account_id);
-        if ($creditAcc->type === 'liability' || $creditAcc->type === 'equity' || $creditAcc->type === 'revenue') {
+        if (in_array($creditAcc->type, ['liability', 'equity', 'income'])) {
             $creditAcc->increment('balance', $this->amount);
         } else {
             $creditAcc->decrement('balance', $this->amount);
@@ -119,11 +150,177 @@ class AccountingManager extends Component
             'user_id' => auth()->id() ?? 1,
             'module' => 'Accounting',
             'action' => 'Create Journal Entry',
-            'description' => 'Journal entry ' . $ref . ' posted: Debit ' . $debitAcc->name . ', Credit ' . $creditAcc->name . ' for Rp ' . number_format($this->amount, 0, ',', '.')
+            'description' => 'Journal entry (' . $this->journal_type . ') ' . $ref . ' posted: Debit ' . $debitAcc->name . ', Credit ' . $creditAcc->name . ' for Rp ' . number_format($this->amount, 0, ',', '.')
         ]);
 
         session()->flash('success', 'Journal entry posted successfully.');
         $this->closeModal();
+    }
+
+    // Closing Period Action
+    public function executeClosing()
+    {
+        $this->validate([
+            'closing_date' => 'required|date',
+            'closing_note' => 'nullable|string',
+        ]);
+
+        // Find or create retained earnings (Laba Ditahan) account
+        $retainedEarningsAccount = Account::firstOrCreate(
+            ['code' => '3200'],
+            ['name' => 'Laba Ditahan', 'type' => 'equity', 'balance' => 0]
+        );
+
+        // Find or create Income Summary (Ikhtisar Laba Rugi) account
+        $incomeSummaryAccount = Account::firstOrCreate(
+            ['code' => '3999'],
+            ['name' => 'Ikhtisar Laba Rugi', 'type' => 'equity', 'balance' => 0]
+        );
+
+        // Fetch nominal accounts (income & expense) with positive balances
+        $nominalAccounts = Account::whereIn('type', ['income', 'expense'])->where('balance', '!=', 0)->get();
+
+        if ($nominalAccounts->isEmpty()) {
+            session()->flash('error', 'No active income or expense accounts to close.');
+            return;
+        }
+
+        DB::transaction(function () use ($nominalAccounts, $incomeSummaryAccount, $retainedEarningsAccount) {
+            $ref = 'CLS-' . date('Ymd', strtotime($this->closing_date)) . '-' . strtoupper(substr(uniqid(), -4));
+
+            foreach ($nominalAccounts as $account) {
+                $balance = $account->balance;
+                if ($balance == 0) continue;
+
+                if ($account->type === 'income') {
+                    // Debit Income Account (to make it 0), Credit Income Summary
+                    Journal::create([
+                        'account_id' => $account->id,
+                        'transaction_date' => $this->closing_date,
+                        'description' => 'Closing entry for ' . $account->name,
+                        'reference_number' => $ref,
+                        'amount' => $balance,
+                        'type' => 'debit',
+                        'journal_type' => 'closing',
+                    ]);
+
+                    Journal::create([
+                        'account_id' => $incomeSummaryAccount->id,
+                        'transaction_date' => $this->closing_date,
+                        'description' => 'Closing entry for ' . $account->name,
+                        'reference_number' => $ref,
+                        'amount' => $balance,
+                        'type' => 'credit',
+                        'journal_type' => 'closing',
+                    ]);
+
+                    $account->balance = 0;
+                    $account->save();
+
+                    $incomeSummaryAccount->increment('balance', $balance);
+                } elseif ($account->type === 'expense') {
+                    // Credit Expense Account (to make it 0), Debit Income Summary
+                    Journal::create([
+                        'account_id' => $account->id,
+                        'transaction_date' => $this->closing_date,
+                        'description' => 'Closing entry for ' . $account->name,
+                        'reference_number' => $ref,
+                        'amount' => $balance,
+                        'type' => 'credit',
+                        'journal_type' => 'closing',
+                    ]);
+
+                    Journal::create([
+                        'account_id' => $incomeSummaryAccount->id,
+                        'transaction_date' => $this->closing_date,
+                        'description' => 'Closing entry for ' . $account->name,
+                        'reference_number' => $ref,
+                        'amount' => $balance,
+                        'type' => 'debit',
+                        'journal_type' => 'closing',
+                    ]);
+
+                    $account->balance = 0;
+                    $account->save();
+
+                    $incomeSummaryAccount->decrement('balance', $balance);
+                }
+            }
+
+            // Transfer net income/loss from Income Summary to Retained Earnings
+            $netIncome = $incomeSummaryAccount->balance;
+            if ($netIncome != 0) {
+                if ($netIncome > 0) {
+                    // Debit Income Summary (to make it 0), Credit Retained Earnings
+                    Journal::create([
+                        'account_id' => $incomeSummaryAccount->id,
+                        'transaction_date' => $this->closing_date,
+                        'description' => 'Transfer Net Income to Retained Earnings',
+                        'reference_number' => $ref,
+                        'amount' => $netIncome,
+                        'type' => 'debit',
+                        'journal_type' => 'closing',
+                    ]);
+
+                    Journal::create([
+                        'account_id' => $retainedEarningsAccount->id,
+                        'transaction_date' => $this->closing_date,
+                        'description' => 'Transfer Net Income to Retained Earnings',
+                        'reference_number' => $ref,
+                        'amount' => $netIncome,
+                        'type' => 'credit',
+                        'journal_type' => 'closing',
+                    ]);
+
+                    $retainedEarningsAccount->increment('balance', $netIncome);
+                } else {
+                    // Credit Income Summary (to make it 0), Debit Retained Earnings
+                    $lossAmount = abs($netIncome);
+                    Journal::create([
+                        'account_id' => $incomeSummaryAccount->id,
+                        'transaction_date' => $this->closing_date,
+                        'description' => 'Transfer Net Loss to Retained Earnings',
+                        'reference_number' => $ref,
+                        'amount' => $lossAmount,
+                        'type' => 'credit',
+                        'journal_type' => 'closing',
+                    ]);
+
+                    Journal::create([
+                        'account_id' => $retainedEarningsAccount->id,
+                        'transaction_date' => $this->closing_date,
+                        'description' => 'Transfer Net Loss to Retained Earnings',
+                        'reference_number' => $ref,
+                        'amount' => $lossAmount,
+                        'type' => 'debit',
+                        'journal_type' => 'closing',
+                    ]);
+
+                    $retainedEarningsAccount->decrement('balance', $lossAmount);
+                }
+
+                $incomeSummaryAccount->balance = 0;
+                $incomeSummaryAccount->save();
+            }
+
+            // Save period closing log
+            PeriodClosing::create([
+                'closing_date' => $this->closing_date,
+                'status' => 'closed',
+                'closed_by' => auth()->id() ?? 1,
+                'notes' => $this->closing_note ?: 'Period closing successfully compiled.',
+            ]);
+
+            ActivityLog::create([
+                'user_id' => auth()->id() ?? 1,
+                'module' => 'Accounting',
+                'action' => 'Close Fiscal Period',
+                'description' => 'Closed fiscal period up to ' . $this->closing_date
+            ]);
+        });
+
+        session()->flash('success', 'Fiscal period closed successfully. All income and expense accounts have been reset to zero.');
+        $this->activeTab = 'coa';
     }
 
     // Asset methods
@@ -177,7 +374,6 @@ class AccountingManager extends Component
         $assets = Asset::all();
         $processedCount = 0;
 
-        // Ensure accounts for depreciation exist
         $depExpenseAcc = Account::firstOrCreate(
             ['code' => '5299'],
             ['name' => 'Depreciation Expense', 'type' => 'expense', 'balance' => 0]
@@ -192,18 +388,15 @@ class AccountingManager extends Component
             $existingMonths = AssetDepreciation::where('asset_id', $asset->id)->count();
 
             if ($existingMonths >= $asset->useful_life_months) {
-                continue; // Fully depreciated
+                continue; 
             }
 
-            // Straight-line monthly calculation
             $monthlyAmount = ($asset->purchase_price - $asset->residual_value) / $asset->useful_life_months;
 
-            // Calculate next depreciation date
             $purchaseTime = strtotime($asset->purchase_date);
             $nextMonthTime = strtotime("+" . ($existingMonths + 1) . " months", $purchaseTime);
             $depreciationDate = date('Y-m-d', $nextMonthTime);
 
-            // Avoid calculating future dates past today
             if (strtotime($depreciationDate) > time()) {
                 continue;
             }
@@ -219,7 +412,6 @@ class AccountingManager extends Component
                 'book_value' => $bookValue,
             ]);
 
-            // Create Journal Entry
             $ref = 'DEP-' . now()->format('Ymd') . '-' . sprintf('%04d', $asset->id);
 
             Journal::create([
@@ -229,6 +421,7 @@ class AccountingManager extends Component
                 'reference_number' => $ref,
                 'amount' => $monthlyAmount,
                 'type' => 'debit',
+                'journal_type' => 'adjustment',
             ]);
 
             Journal::create([
@@ -238,10 +431,11 @@ class AccountingManager extends Component
                 'reference_number' => $ref,
                 'amount' => $monthlyAmount,
                 'type' => 'credit',
+                'journal_type' => 'adjustment',
             ]);
 
             $depExpenseAcc->increment('balance', $monthlyAmount);
-            $accumDepAcc->decrement('balance', $monthlyAmount); // AccDep is a contra-asset, reducing total asset value
+            $accumDepAcc->decrement('balance', $monthlyAmount); 
 
             $processedCount++;
         }
@@ -267,13 +461,78 @@ class AccountingManager extends Component
                      ->orWhere('code', 'like', '%' . $this->search . '%');
         }
 
-        $journals = Journal::with('account')->orderBy('transaction_date', 'desc')->orderBy('reference_number', 'desc')->paginate(15);
-        $assets = Asset::with('depreciations')->paginate(10);
+        // Journals filter
+        $journalsQuery = Journal::with('account');
+        if ($this->filter_journal_type) {
+            $journalsQuery->where('journal_type', $this->filter_journal_type);
+        }
+        $journals = $journalsQuery->orderBy('transaction_date', 'desc')->orderBy('reference_number', 'desc')->paginate(15);
+
+        // General Ledger Detail
+        $ledgerEntries = [];
+        $openingBalance = 0;
+        $closingBalance = 0;
+        if ($this->selected_account_id) {
+            $account = Account::find($this->selected_account_id);
+            if ($account) {
+                // Calculate opening balance before start date
+                $debitsBefore = Journal::where('account_id', $this->selected_account_id)
+                    ->where('type', 'debit')
+                    ->where('transaction_date', '<', $this->ledger_start_date)
+                    ->sum('amount');
+                $creditsBefore = Journal::where('account_id', $this->selected_account_id)
+                    ->where('type', 'credit')
+                    ->where('transaction_date', '<', $this->ledger_start_date)
+                    ->sum('amount');
+
+                if (in_array($account->type, ['asset', 'expense'])) {
+                    $openingBalance = $debitsBefore - $creditsBefore;
+                } else {
+                    $openingBalance = $creditsBefore - $debitsBefore;
+                }
+
+                // Fetch ledger entries in date range
+                $ledgerEntries = Journal::where('account_id', $this->selected_account_id)
+                    ->whereBetween('transaction_date', [$this->ledger_start_date, $this->ledger_end_date])
+                    ->orderBy('transaction_date')
+                    ->orderBy('id')
+                    ->get();
+
+                // Compute running balances
+                $currentTemp = $openingBalance;
+                foreach ($ledgerEntries as $entry) {
+                    if ($entry->type === 'debit') {
+                        if (in_array($account->type, ['asset', 'expense'])) {
+                            $currentTemp += $entry->amount;
+                        } else {
+                            $currentTemp -= $entry->amount;
+                        }
+                    } else { // credit
+                        if (in_array($account->type, ['asset', 'expense'])) {
+                            $currentTemp -= $entry->amount;
+                        } else {
+                            $currentTemp += $entry->amount;
+                        }
+                    }
+                    $entry->running_balance = $currentTemp;
+                }
+                $closingBalance = $currentTemp;
+            }
+        }
+
+        // Period Closings history
+        $closings = PeriodClosing::orderBy('closing_date', 'desc')->paginate(10);
 
         return view('livewire.accounting-manager', [
             'accounts' => $coaQuery->get(),
             'journals' => $journals,
-            'assets' => $assets,
-        ]);
+            'assets' => Asset::with('depreciations')->paginate(10),
+            'allAccounts' => Account::orderBy('code')->get(),
+            'ledgerEntries' => $ledgerEntries,
+            'openingBalance' => $openingBalance,
+            'closingBalance' => $closingBalance,
+            'closings' => $closings,
+        ])->layout('layouts.app');
     }
 }
+
