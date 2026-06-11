@@ -22,7 +22,15 @@ class HomeController extends Controller
 {
     public function index()
     {
-        $contact = HomeContactUs::first();
+        $contact = HomeContactUs::query()->first();
+        $about = HomeAboutUs::query()->first();
+        $activeBannersCount = HomeBanner::query()->where('status', 'active')->count();
+
+        // Redirect to login if initial config/content is not set or empty
+        if (!$contact || !$about || $activeBannersCount === 0) {
+            return redirect()->route('login');
+        }
+
         $template = $contact->template ?? 'default';
 
         if (!view()->exists("themes.{$template}")) {
@@ -31,19 +39,19 @@ class HomeController extends Controller
 
         return view('welcome', [
             'template' => $template,
-            'banners' => HomeBanner::where('status', 'active')->get(),
-            'about' => HomeAboutUs::first(),
-            'service_parent' => HomeServiceParent::first(),
-            'services' => HomeService::where('status', 'active')->get(),
-            'value_parent' => HomeValueParent::first(),
-            'values' => HomeValue::where('status', 'active')->get(),
-            'gallery_parent' => HomeGalleryParent::first(),
-            'galleries' => HomeGallery::get(),
-            'client_parent' => HomeClientParent::first(),
-            'clients' => HomeClient::where('status', 'active')->get(),
-            'tagline' => HomeTagline::first(),
-            'testimoni_parent' => HomeTestimoniParent::first(),
-            'testimonis' => HomeTestimoni::where('status', 'active')->get(),
+            'banners' => HomeBanner::query()->where('status', 'active')->get(),
+            'about' => $about,
+            'service_parent' => HomeServiceParent::query()->first(),
+            'services' => HomeService::query()->where('status', 'active')->get(),
+            'value_parent' => HomeValueParent::query()->first(),
+            'values' => HomeValue::query()->where('status', 'active')->get(),
+            'gallery_parent' => HomeGalleryParent::query()->first(),
+            'galleries' => HomeGallery::query()->get(),
+            'client_parent' => HomeClientParent::query()->first(),
+            'clients' => HomeClient::query()->where('status', 'active')->get(),
+            'tagline' => HomeTagline::query()->first(),
+            'testimoni_parent' => HomeTestimoniParent::query()->first(),
+            'testimonis' => HomeTestimoni::query()->where('status', 'active')->get(),
             'contact' => $contact,
         ]);
     }
