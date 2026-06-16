@@ -11,9 +11,15 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Register 'module' alias
+        // Register middleware aliases
         $middleware->alias([
             'module' => \App\Http\Middleware\CheckModuleAccess::class,
+            'menu-access' => \App\Http\Middleware\CheckMenuAccess::class,
+        ]);
+
+        // Append CheckMenuAccess to all web routes
+        $middleware->web(append: [
+            \App\Http\Middleware\CheckMenuAccess::class,
         ]);
 
         // Exclude Midtrans webhook from CSRF verification

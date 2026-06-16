@@ -276,6 +276,10 @@ Route::get('content', \App\Livewire\ContentManager::class)
     ->middleware(['auth', 'verified'])
     ->name('content-manager');
 
+Route::get('manage-menu', \App\Livewire\MenuManager::class)
+    ->middleware(['auth', 'verified'])
+    ->name('manage-menu');
+
 Route::get('config-basic', \App\Livewire\ConfigBasicManager::class)
     ->middleware(['auth', 'verified'])
     ->name('config-basic-manager');
