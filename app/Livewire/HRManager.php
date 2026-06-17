@@ -6,11 +6,13 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use App\Models\Employee;
 use App\Models\Attendance;
+use App\Models\AttendanceSetting;
 use App\Models\Payroll;
 use App\Models\Department;
 use App\Models\Leave;
 use App\Models\ActivityLog;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 
 class HRManager extends Component
 {
@@ -23,7 +25,7 @@ class HRManager extends Component
     public $payroll_month;
     public $payroll_year;
     public $isOpen = false;
-    public $modalType = ''; // 'payroll', 'department', 'leave', 'employee'
+    public $modalType = ''; // 'payroll', 'department', 'leave', 'employee', 'attendance-settings'
 
     // Employee fields
     public $emp_id;
@@ -51,6 +53,32 @@ class HRManager extends Component
     public $leave_type = 'annual';
     public $leave_reason;
     public $leave_status = 'pending';
+
+    // Attendance Clock-In/Out fields
+    public $clock_employee_id;
+    public $clock_latitude;
+    public $clock_longitude;
+    public $clock_address = '';
+
+    // Attendance Settings fields
+    public $setting_id;
+    public $setting_office_name = 'Kantor Pusat';
+    public $setting_latitude;
+    public $setting_longitude;
+    public $setting_radius = 200;
+    public $setting_work_start = '08:00';
+    public $setting_work_end = '17:00';
+    public $setting_late_tolerance = 15;
+    public $setting_early_checkin = 60;
+    public $setting_require_location = true;
+
+    // Attendance filter
+    public $att_filter_date;
+
+    public function mount()
+    {
+        $this->att_filter_date = now()->format('Y-m-d');
+    }
 
     public function openModal($type)
     {
@@ -205,11 +233,11 @@ class HRManager extends Component
                 ->count();
 
             if ($attendanceCount === 0) {
-                $attendanceCount = 20; 
+                $attendanceCount = 20;
             }
 
             $basic = floatval($emp->salary);
-            
+
             // === ALLOWANCES ===
             $transportAllowance = $attendanceCount * 30000;  // Rp30k/day transport
             $mealAllowance = $attendanceCount * 25000;       // Rp25k/day meal
@@ -222,17 +250,17 @@ class HRManager extends Component
             $bpjsJkk = $basic * 0.0024;     // JKK 0.24% (typically employer, included for transparency)
             $bpjsJkm = $basic * 0.003;      // JKM 0.3% (typically employer)
             $bpjsKetenagakerjaan = $bpjsJht + $bpjsJp; // Employee-borne
-            
+
             // BPJS Kesehatan (Employee Share: 1% of salary)
             $bpjsKesehatan = $basic * 0.01;
-            
+
             // PPh 21 Estimation (Simplified progressive rate)
             $grossAnnual = ($basic + $totalAllowance) * 12;
             $ptkpStatus = 54000000; // PTKP TK/0 (single, no dependents) - base assumption
             $taxableIncome = max(0, $grossAnnual - $ptkpStatus - ($bpjsKetenagakerjaan * 12) - ($bpjsKesehatan * 12));
             $pph21Annual = $this->calculatePph21($taxableIncome);
             $pph21Monthly = round($pph21Annual / 12);
-            
+
             $totalDeduction = $bpjsKetenagakerjaan + $bpjsKesehatan + $pph21Monthly;
             $net = $basic + $totalAllowance - $totalDeduction;
 
@@ -245,7 +273,7 @@ class HRManager extends Component
                 'total_salary' => $net,
                 'status' => 'draft',
             ]);
-            
+
             // Save detailed payroll components for slip gaji
             $components = [
                 ['name' => 'Tunjangan Transport', 'type' => 'allowance', 'amount' => $transportAllowance],
@@ -255,7 +283,7 @@ class HRManager extends Component
                 ['name' => 'BPJS Kesehatan (1%)', 'type' => 'deduction', 'amount' => $bpjsKesehatan],
                 ['name' => 'PPh 21', 'type' => 'deduction', 'amount' => $pph21Monthly],
             ];
-            
+
             foreach ($components as $comp) {
                 \App\Models\PayrollComponent::create([
                     'payroll_id' => $payroll->id,
@@ -431,20 +459,262 @@ class HRManager extends Component
         session()->flash('success', 'Leave request rejected.');
     }
 
+    // ──────────────────────────────────────────────────────────────────
+    // Attendance Clock-In / Clock-Out (Location-Based)
+    // ──────────────────────────────────────────────────────────────────
+
+    public function clockIn($employeeId, $latitude, $longitude, $address = '')
+    {
+        $employee = Employee::findOrFail($employeeId);
+        $today = now()->format('Y-m-d');
+        $currentTime = now()->format('H:i:s');
+
+        // Check if already clocked in today
+        $existing = Attendance::where('employee_id', $employeeId)
+            ->where('date', $today)
+            ->first();
+
+        if ($existing && $existing->check_in) {
+            session()->flash('error', 'Karyawan ' . $employee->name . ' sudah melakukan clock-in hari ini.');
+            return;
+        }
+
+        // Get attendance settings
+        $setting = AttendanceSetting::where('is_active', true)->first();
+
+        $distance = null;
+        $status = 'present';
+        $notes = '';
+
+        if ($setting) {
+            try {
+                // Get the work start time with proper fallback
+                $workStartTime = $setting->work_start_time ?? $setting->work_start ?? '08:00:00';
+                $workStart = $this->parseWorkTime($workStartTime);
+
+                // Get the early check-in minutes with fallback
+                $earlyMinutes = $setting->early_checkin_minutes ?? $setting->early_checkin ?? 60;
+                $earlyLimit = $workStart->copy()->subMinutes((int)$earlyMinutes);
+
+                // Get the late tolerance with fallback
+                $lateMinutes = $setting->late_tolerance_minutes ?? $setting->late_tolerance ?? 15;
+                $lateLimit = $workStart->copy()->addMinutes((int)$lateMinutes);
+
+                $now = Carbon::now();
+
+                if ($now->lt($earlyLimit)) {
+                    session()->flash('error', 'Belum bisa clock-in. Waktu clock-in dimulai pukul ' . $earlyLimit->format('H:i') . '.');
+                    return;
+                }
+
+                if ($now->gt($lateLimit)) {
+                    $status = 'late';
+                    $notes = 'Terlambat ' . $now->diffInMinutes($workStart) . ' menit';
+                }
+
+                // Check location if required
+                $requireLocation = $setting->require_location ?? true;
+                if ($requireLocation && $latitude && $longitude) {
+                    $officeLat = $setting->office_latitude ?? $setting->latitude ?? 0;
+                    $officeLng = $setting->office_longitude ?? $setting->longitude ?? 0;
+
+                    if ($officeLat != 0 && $officeLng != 0) {
+                        $distance = AttendanceSetting::calculateDistance(
+                            (float)$latitude,
+                            (float)$longitude,
+                            (float)$officeLat,
+                            (float)$officeLng
+                        );
+
+                        $maxRadius = $setting->allowed_radius ?? $setting->radius ?? 200;
+                        if ($distance > $maxRadius) {
+                            session()->flash('error', 'Lokasi Anda terlalu jauh dari kantor (' . round($distance) . 'm). Jarak maksimum: ' . $maxRadius . 'm.');
+                            return;
+                        }
+                    }
+                } elseif ($requireLocation && (!$latitude || !$longitude)) {
+                    session()->flash('error', 'Lokasi GPS diperlukan untuk clock-in. Aktifkan GPS pada perangkat Anda.');
+                    return;
+                }
+            } catch (\Exception $e) {
+                // Log the error but continue with clock-in
+                \Log::error('Clock-in time parsing error: ' . $e->getMessage());
+                // Continue with default values
+            }
+        }
+
+        // Create or update attendance
+        $attendance = Attendance::updateOrCreate(
+            ['employee_id' => $employeeId, 'date' => $today],
+            [
+                'check_in' => $currentTime,
+                'check_in_latitude' => $latitude ?: null,
+                'check_in_longitude' => $longitude ?: null,
+                'check_in_distance' => $distance,
+                'check_in_address' => $address ?: null,
+                'status' => $status,
+                'notes' => $notes ?: null,
+            ]
+        );
+
+        ActivityLog::create([
+            'user_id' => Auth::id() ?? 1,
+            'module' => 'HR',
+            'action' => 'Clock In',
+            'description' => $employee->name . ' clock-in at ' . $currentTime . ($distance ? ' (Distance: ' . round($distance) . 'm)' : ''),
+        ]);
+
+        session()->flash('success', 'Clock-in berhasil untuk ' . $employee->name . ' pada pukul ' . Carbon::parse($currentTime)->format('H:i') . ($status === 'late' ? ' (TERLAMBAT)' : '') . '.');
+    }
+
+    public function clockOut($employeeId, $latitude, $longitude, $address = '')
+    {
+        $employee = Employee::findOrFail($employeeId);
+        $today = now()->format('Y-m-d');
+        $currentTime = now()->format('H:i:s');
+
+        $attendance = Attendance::where('employee_id', $employeeId)
+            ->where('date', $today)
+            ->first();
+
+        if (!$attendance || !$attendance->check_in) {
+            session()->flash('error', 'Karyawan ' . $employee->name . ' belum clock-in hari ini.');
+            return;
+        }
+
+        if ($attendance->check_out) {
+            session()->flash('error', 'Karyawan ' . $employee->name . ' sudah clock-out hari ini.');
+            return;
+        }
+
+        $setting = AttendanceSetting::where('is_active', true)->first();
+        $distance = null;
+
+        if ($setting && $setting->require_location && $latitude && $longitude) {
+            $distance = AttendanceSetting::calculateDistance(
+                $latitude,
+                $longitude,
+                $setting->office_latitude,
+                $setting->office_longitude
+            );
+        }
+
+        $attendance->update([
+            'check_out' => $currentTime,
+            'check_out_latitude' => $latitude,
+            'check_out_longitude' => $longitude,
+            'check_out_distance' => $distance,
+            'check_out_address' => $address ?: null,
+        ]);
+
+        $checkIn = Carbon::parse($attendance->check_in);
+        $checkOut = Carbon::parse($currentTime);
+        $duration = $checkIn->diff($checkOut);
+        $durationStr = $duration->format('%H jam %I menit');
+
+        ActivityLog::create([
+            'user_id' => Auth::id() ?? 1,
+            'module' => 'HR',
+            'action' => 'Clock Out',
+            'description' => $employee->name . ' clock-out at ' . $currentTime . ' (Durasi kerja: ' . $durationStr . ')',
+        ]);
+
+        session()->flash('success', 'Clock-out berhasil untuk ' . $employee->name . ' pada pukul ' . Carbon::parse($currentTime)->format('H:i') . '. Durasi kerja: ' . $durationStr . '.');
+    }
+
+    // Attendance Settings
+    public function openAttendanceSettings()
+    {
+        $setting = AttendanceSetting::where('is_active', true)->first();
+
+        if ($setting) {
+            $this->setting_id = $setting->id;
+            $this->setting_office_name = $setting->office_name;
+            $this->setting_latitude = $setting->office_latitude;
+            $this->setting_longitude = $setting->office_longitude;
+            $this->setting_radius = $setting->allowed_radius;
+            $this->setting_work_start = $setting->work_start_time;
+            $this->setting_work_end = $setting->work_end_time;
+            $this->setting_late_tolerance = $setting->late_tolerance_minutes;
+            $this->setting_early_checkin = $setting->early_checkin_minutes;
+            $this->setting_require_location = $setting->require_location;
+        } else {
+            $this->setting_id = null;
+            $this->setting_office_name = 'Kantor Pusat';
+            $this->setting_latitude = null;
+            $this->setting_longitude = null;
+            $this->setting_radius = 200;
+            $this->setting_work_start = '08:00';
+            $this->setting_work_end = '17:00';
+            $this->setting_late_tolerance = 15;
+            $this->setting_early_checkin = 60;
+            $this->setting_require_location = true;
+        }
+
+        $this->openModal('attendance-settings');
+    }
+
+    public function saveAttendanceSettings()
+    {
+        $this->validate([
+            'setting_office_name' => 'required|string|max:255',
+            'setting_latitude' => 'required|numeric|between:-90,90',
+            'setting_longitude' => 'required|numeric|between:-180,180',
+            'setting_radius' => 'required|integer|min:50|max:5000',
+            'setting_work_start' => 'required',
+            'setting_work_end' => 'required',
+            'setting_late_tolerance' => 'required|integer|min:0|max:120',
+            'setting_early_checkin' => 'required|integer|min:0|max:180',
+        ]);
+
+        AttendanceSetting::updateOrCreate(
+            ['id' => $this->setting_id],
+            [
+                'office_name' => $this->setting_office_name,
+                'office_latitude' => $this->setting_latitude,
+                'office_longitude' => $this->setting_longitude,
+                'allowed_radius' => $this->setting_radius,
+                'work_start_time' => $this->setting_work_start,
+                'work_end_time' => $this->setting_work_end,
+                'late_tolerance_minutes' => $this->setting_late_tolerance,
+                'early_checkin_minutes' => $this->setting_early_checkin,
+                'require_location' => $this->setting_require_location,
+                'is_active' => true,
+            ]
+        );
+
+        ActivityLog::create([
+            'user_id' => Auth::id() ?? 1,
+            'module' => 'HR',
+            'action' => 'Update Attendance Settings',
+            'description' => 'Updated attendance settings: ' . $this->setting_office_name . ' (radius: ' . $this->setting_radius . 'm)',
+        ]);
+
+        session()->flash('success', 'Pengaturan absensi berhasil disimpan.');
+        $this->closeModal();
+    }
+
     public function render()
     {
         $empQuery = Employee::query();
         if ($this->search) {
             $empQuery->where('name', 'like', '%' . $this->search . '%')
-                     ->orWhere('employee_number', 'like', '%' . $this->search . '%')
-                     ->orWhere('department', 'like', '%' . $this->search . '%');
+                ->orWhere('employee_number', 'like', '%' . $this->search . '%')
+                ->orWhere('department', 'like', '%' . $this->search . '%');
         }
 
         $attQuery = Attendance::with('employee')->orderBy('date', 'desc');
+        if ($this->att_filter_date) {
+            $attQuery->where('date', $this->att_filter_date);
+        }
+
         $payrolls = Payroll::with(['employee', 'components'])->orderBy('period', 'desc')->paginate(10);
-        
+
         $departments = Department::orderBy('name')->paginate(10);
         $leaves = Leave::with('employee')->orderBy('created_at', 'desc')->paginate(10);
+
+        // Get attendance setting for display
+        $attendanceSetting = AttendanceSetting::where('is_active', true)->first();
 
         return view('livewire.h-r-manager', [
             'employees' => $empQuery->paginate(10),
@@ -453,6 +723,30 @@ class HRManager extends Component
             'departments' => $departments,
             'leaves' => $leaves,
             'allEmployees' => Employee::all(),
+            'attendanceSetting' => $attendanceSetting,
         ]);
+    }
+    private function parseWorkTime($time)
+    {
+        // Remove any extra whitespace
+        $time = trim($time);
+
+        try {
+            // Try parsing with H:i:s format first (most common from database)
+            return Carbon::createFromFormat('H:i:s', $time);
+        } catch (\Exception $e1) {
+            try {
+                // Try parsing with H:i format
+                return Carbon::createFromFormat('H:i', $time);
+            } catch (\Exception $e2) {
+                try {
+                    // Try parsing with g:i A format (for AM/PM)
+                    return Carbon::createFromFormat('g:i A', $time);
+                } catch (\Exception $e3) {
+                    // If all fails, try creating a time from string
+                    return Carbon::parse($time);
+                }
+            }
+        }
     }
 }

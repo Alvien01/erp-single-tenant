@@ -376,5 +376,19 @@ class DatabaseSeeder extends Seeder
             'action' => 'Create Invoice',
             'description' => 'Invoice INV-20260519-0002 has been successfully created'
         ]);
+
+        \App\Models\AttendanceSetting::create([
+            'office_name' => 'Kantor Pusat Quantum',
+            'office_latitude' => -6.200000,
+            'office_longitude' => 106.816666,
+            'allowed_radius' => 200,
+            'work_start_time' => '08:00',
+            'work_end_time' => '17:00',
+            'late_tolerance_minutes' => 15,
+            'early_checkin_minutes' => 60,
+            'require_location' => true,
+            'is_active' => true,
+        ]);
     }
 }
+
