@@ -38,6 +38,10 @@ class HRManager extends Component
     public $emp_join_date;
     public $emp_salary = 0;
     public $emp_status = 'active';
+    
+    // Employee allowance fields
+    public $emp_transport_allowance = 30000;
+    public $emp_meal_allowance = 25000;
 
     // Department fields
     public $dept_id;
@@ -55,7 +59,6 @@ class HRManager extends Component
     public $leave_status = 'pending';
 
     // Attendance Clock-In/Out fields
-    public $clock_employee_id;
     public $clock_latitude;
     public $clock_longitude;
     public $clock_address = '';
@@ -75,13 +78,119 @@ class HRManager extends Component
     // Attendance filter
     public $att_filter_date;
 
+    // Current user's employee
+    public $currentEmployeeId = null;
+    public $currentEmployee = null;
+
+    // Flag untuk cek apakah user adalah admin
+    public $isAdmin = false;
+
     public function mount()
     {
         $this->att_filter_date = now()->format('Y-m-d');
+        $this->checkAdminRole();
+        $this->loadOrCreateCurrentEmployee();
+    }
+
+    /**
+     * Check if current user has admin role
+     */
+    private function checkAdminRole()
+    {
+        $user = Auth::user();
+        if (!$user) {
+            $this->isAdmin = false;
+            return;
+        }
+
+        // Cek role dari user
+        // Sesuaikan dengan implementasi role di sistem Anda
+        // Misal: menggunakan kolom 'role' atau 'is_admin'
+        $this->isAdmin = isset($user->role) && $user->role === 'admin';
+        
+        // Atau jika menggunakan Spatie Permission:
+        // $this->isAdmin = $user->hasRole('admin');
+        
+        // Atau jika menggunakan kolom is_admin:
+        // $this->isAdmin = $user->is_admin ?? false;
+    }
+
+    /**
+     * Load or create employee record for the currently logged-in user
+     */
+    private function loadOrCreateCurrentEmployee()
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return;
+        }
+
+        // Cari employee berdasarkan user_id
+        $employee = Employee::where('user_id', $user->id)->first();
+        
+        if (!$employee) {
+            // Coba cari berdasarkan email
+            $employee = Employee::where('email', $user->email)->first();
+        }
+
+        if (!$employee) {
+            // Buat employee baru otomatis untuk user ini
+            $employee = $this->createEmployeeFromUser($user);
+        }
+
+        if ($employee) {
+            $this->currentEmployeeId = $employee->id;
+            $this->currentEmployee = $employee;
+        }
+    }
+
+    /**
+     * Create employee automatically from user data
+     */
+    private function createEmployeeFromUser($user)
+    {
+        // Generate employee number
+        $lastEmployee = Employee::orderBy('id', 'desc')->first();
+        $nextNumber = $lastEmployee ? intval(substr($lastEmployee->employee_number, -3)) + 1 : 1;
+        $employeeNumber = 'EMP-' . now()->format('Ymd') . '-' . sprintf('%03d', $nextNumber);
+
+        // Buat employee dengan data dari user
+        $employee = Employee::create([
+            'user_id' => $user->id,
+            'employee_number' => $employeeNumber,
+            'name' => $user->name,
+            'email' => $user->email,
+            'phone' => $user->phone ?? '',
+            'position' => 'Staff',
+            'department' => 'General',
+            'join_date' => now()->format('Y-m-d'),
+            'salary' => 0,
+            'status' => 'active',
+            'transport_allowance' => 30000,
+            'meal_allowance' => 25000,
+        ]);
+
+        // Log aktivitas
+        ActivityLog::create([
+            'user_id' => $user->id,
+            'module' => 'HR',
+            'action' => 'Auto Create Employee',
+            'description' => 'Employee automatically created for user: ' . $user->name . ' (' . $user->email . ')',
+        ]);
+
+        session()->flash('info', 'Akun karyawan otomatis dibuat untuk ' . $user->name . '.');
+
+        return $employee;
     }
 
     public function openModal($type)
     {
+        // Validasi akses untuk attendance-settings
+        if ($type === 'attendance-settings' && !$this->isAdmin) {
+            session()->flash('error', 'Anda tidak memiliki akses untuk mengatur pengaturan absensi.');
+            return;
+        }
+
         $this->modalType = $type;
         $this->isOpen = true;
     }
@@ -133,6 +242,8 @@ class HRManager extends Component
         $this->emp_join_date = now()->format('Y-m-d');
         $this->emp_salary = 0;
         $this->emp_status = 'active';
+        $this->emp_transport_allowance = 30000;
+        $this->emp_meal_allowance = 25000;
     }
 
     // Employee CRUD Actions
@@ -155,6 +266,8 @@ class HRManager extends Component
         $this->emp_join_date = $emp->join_date;
         $this->emp_salary = $emp->salary;
         $this->emp_status = $emp->status;
+        $this->emp_transport_allowance = $emp->transport_allowance ?? 30000;
+        $this->emp_meal_allowance = $emp->meal_allowance ?? 25000;
 
         $this->openModal('employee');
     }
@@ -167,6 +280,8 @@ class HRManager extends Component
             'emp_email' => 'nullable|email|max:255',
             'emp_phone' => 'nullable|string|max:20',
             'emp_salary' => 'required|numeric|min:0',
+            'emp_transport_allowance' => 'required|numeric|min:0',
+            'emp_meal_allowance' => 'required|numeric|min:0',
         ]);
 
         Employee::query()->updateOrCreate(
@@ -181,6 +296,8 @@ class HRManager extends Component
                 'join_date' => $this->emp_join_date,
                 'salary' => $this->emp_salary,
                 'status' => $this->emp_status,
+                'transport_allowance' => $this->emp_transport_allowance,
+                'meal_allowance' => $this->emp_meal_allowance,
             ]
         );
 
@@ -238,25 +355,21 @@ class HRManager extends Component
 
             $basic = floatval($emp->salary);
 
-            // === ALLOWANCES ===
-            $transportAllowance = $attendanceCount * 30000;  // Rp30k/day transport
-            $mealAllowance = $attendanceCount * 25000;       // Rp25k/day meal
+            $transportPerDay = $emp->transport_allowance ?? 30000;
+            $mealPerDay = $emp->meal_allowance ?? 25000;
+            
+            $transportAllowance = $attendanceCount * $transportPerDay;
+            $mealAllowance = $attendanceCount * $mealPerDay;
             $totalAllowance = $transportAllowance + $mealAllowance;
 
-            // === DEDUCTIONS (Indonesian Standards) ===
-            // BPJS Ketenagakerjaan (Employee Share)
-            $bpjsJht = $basic * 0.02;       // JHT 2% employee share
-            $bpjsJp  = $basic * 0.01;       // JP 1% employee share
-            $bpjsJkk = $basic * 0.0024;     // JKK 0.24% (typically employer, included for transparency)
-            $bpjsJkm = $basic * 0.003;      // JKM 0.3% (typically employer)
-            $bpjsKetenagakerjaan = $bpjsJht + $bpjsJp; // Employee-borne
-
-            // BPJS Kesehatan (Employee Share: 1% of salary)
+            // DEDUCTIONS
+            $bpjsJht = $basic * 0.02;
+            $bpjsJp  = $basic * 0.01;
+            $bpjsKetenagakerjaan = $bpjsJht + $bpjsJp;
             $bpjsKesehatan = $basic * 0.01;
 
-            // PPh 21 Estimation (Simplified progressive rate)
             $grossAnnual = ($basic + $totalAllowance) * 12;
-            $ptkpStatus = 54000000; // PTKP TK/0 (single, no dependents) - base assumption
+            $ptkpStatus = 54000000;
             $taxableIncome = max(0, $grossAnnual - $ptkpStatus - ($bpjsKetenagakerjaan * 12) - ($bpjsKesehatan * 12));
             $pph21Annual = $this->calculatePph21($taxableIncome);
             $pph21Monthly = round($pph21Annual / 12);
@@ -274,10 +387,9 @@ class HRManager extends Component
                 'status' => 'draft',
             ]);
 
-            // Save detailed payroll components for slip gaji
             $components = [
-                ['name' => 'Tunjangan Transport', 'type' => 'allowance', 'amount' => $transportAllowance],
-                ['name' => 'Tunjangan Makan', 'type' => 'allowance', 'amount' => $mealAllowance],
+                ['name' => 'Tunjangan Transport (Rp ' . number_format($transportPerDay, 0, ',', '.') . '/hari)', 'type' => 'allowance', 'amount' => $transportAllowance],
+                ['name' => 'Tunjangan Makan (Rp ' . number_format($mealPerDay, 0, ',', '.') . '/hari)', 'type' => 'allowance', 'amount' => $mealAllowance],
                 ['name' => 'BPJS Ketenagakerjaan (JHT 2%)', 'type' => 'deduction', 'amount' => $bpjsJht],
                 ['name' => 'BPJS Ketenagakerjaan (JP 1%)', 'type' => 'deduction', 'amount' => $bpjsJp],
                 ['name' => 'BPJS Kesehatan (1%)', 'type' => 'deduction', 'amount' => $bpjsKesehatan],
@@ -300,17 +412,13 @@ class HRManager extends Component
             'user_id' => Auth::id() ?? 1,
             'module' => 'HR',
             'action' => 'Generate Payroll',
-            'description' => 'Generated payroll draft (with PPh 21, BPJS) for ' . $count . ' employees for period ' . $periodStr
+            'description' => 'Generated payroll draft for ' . $count . ' employees for period ' . $periodStr
         ]);
 
-        session()->flash('success', 'Payroll draft generated successfully for ' . $count . ' records (incl. PPh 21 & BPJS deductions).');
+        session()->flash('success', 'Payroll draft generated successfully for ' . $count . ' records.');
         $this->closeModal();
     }
 
-    /**
-     * Calculate PPh 21 using Indonesian progressive tax brackets (UU HPP 2022).
-     * Brackets: 0-60M: 5%, 60M-250M: 15%, 250M-500M: 25%, 500M-5B: 30%, >5B: 35%
-     */
     private function calculatePph21($taxableIncome)
     {
         if ($taxableIncome <= 0) return 0;
@@ -460,26 +568,37 @@ class HRManager extends Component
     }
 
     // ──────────────────────────────────────────────────────────────────
-    // Attendance Clock-In / Clock-Out (Location-Based)
+    // Attendance Clock-In / Clock-Out - ALL USERS CAN CLOCK
     // ──────────────────────────────────────────────────────────────────
 
-    public function clockIn($employeeId, $latitude, $longitude, $address = '')
+    public function clockIn($latitude, $longitude, $address = '')
     {
-        $employee = Employee::findOrFail($employeeId);
+        if (!Auth::check()) {
+            session()->flash('error', 'Silakan login terlebih dahulu.');
+            return;
+        }
+
+        if (!$this->currentEmployeeId) {
+            $this->loadOrCreateCurrentEmployee();
+            if (!$this->currentEmployeeId) {
+                session()->flash('error', 'Gagal membuat akun karyawan. Silakan hubungi admin.');
+                return;
+            }
+        }
+
+        $employee = Employee::findOrFail($this->currentEmployeeId);
         $today = now()->format('Y-m-d');
         $currentTime = now()->format('H:i:s');
 
-        // Check if already clocked in today
-        $existing = Attendance::where('employee_id', $employeeId)
+        $existing = Attendance::where('employee_id', $this->currentEmployeeId)
             ->where('date', $today)
             ->first();
 
         if ($existing && $existing->check_in) {
-            session()->flash('error', 'Karyawan ' . $employee->name . ' sudah melakukan clock-in hari ini.');
+            session()->flash('error', 'Anda sudah melakukan clock-in hari ini.');
             return;
         }
 
-        // Get attendance settings
         $setting = AttendanceSetting::where('is_active', true)->first();
 
         $distance = null;
@@ -488,15 +607,12 @@ class HRManager extends Component
 
         if ($setting) {
             try {
-                // Get the work start time with proper fallback
                 $workStartTime = $setting->work_start_time ?? $setting->work_start ?? '08:00:00';
                 $workStart = $this->parseWorkTime($workStartTime);
 
-                // Get the early check-in minutes with fallback
                 $earlyMinutes = $setting->early_checkin_minutes ?? $setting->early_checkin ?? 60;
                 $earlyLimit = $workStart->copy()->subMinutes((int)$earlyMinutes);
 
-                // Get the late tolerance with fallback
                 $lateMinutes = $setting->late_tolerance_minutes ?? $setting->late_tolerance ?? 15;
                 $lateLimit = $workStart->copy()->addMinutes((int)$lateMinutes);
 
@@ -512,7 +628,6 @@ class HRManager extends Component
                     $notes = 'Terlambat ' . $now->diffInMinutes($workStart) . ' menit';
                 }
 
-                // Check location if required
                 $requireLocation = $setting->require_location ?? true;
                 if ($requireLocation && $latitude && $longitude) {
                     $officeLat = $setting->office_latitude ?? $setting->latitude ?? 0;
@@ -537,15 +652,12 @@ class HRManager extends Component
                     return;
                 }
             } catch (\Exception $e) {
-                // Log the error but continue with clock-in
                 \Log::error('Clock-in time parsing error: ' . $e->getMessage());
-                // Continue with default values
             }
         }
 
-        // Create or update attendance
-        $attendance = Attendance::updateOrCreate(
-            ['employee_id' => $employeeId, 'date' => $today],
+        Attendance::updateOrCreate(
+            ['employee_id' => $this->currentEmployeeId, 'date' => $today],
             [
                 'check_in' => $currentTime,
                 'check_in_latitude' => $latitude ?: null,
@@ -564,26 +676,36 @@ class HRManager extends Component
             'description' => $employee->name . ' clock-in at ' . $currentTime . ($distance ? ' (Distance: ' . round($distance) . 'm)' : ''),
         ]);
 
-        session()->flash('success', 'Clock-in berhasil untuk ' . $employee->name . ' pada pukul ' . Carbon::parse($currentTime)->format('H:i') . ($status === 'late' ? ' (TERLAMBAT)' : '') . '.');
+        session()->flash('success', 'Clock-in berhasil pada pukul ' . Carbon::parse($currentTime)->format('H:i') . ($status === 'late' ? ' (TERLAMBAT)' : '') . '.');
     }
 
-    public function clockOut($employeeId, $latitude, $longitude, $address = '')
+    public function clockOut($latitude, $longitude, $address = '')
     {
-        $employee = Employee::findOrFail($employeeId);
+        if (!Auth::check()) {
+            session()->flash('error', 'Silakan login terlebih dahulu.');
+            return;
+        }
+
+        if (!$this->currentEmployeeId) {
+            session()->flash('error', 'Anda belum melakukan clock-in hari ini.');
+            return;
+        }
+
+        $employee = Employee::findOrFail($this->currentEmployeeId);
         $today = now()->format('Y-m-d');
         $currentTime = now()->format('H:i:s');
 
-        $attendance = Attendance::where('employee_id', $employeeId)
+        $attendance = Attendance::where('employee_id', $this->currentEmployeeId)
             ->where('date', $today)
             ->first();
 
         if (!$attendance || !$attendance->check_in) {
-            session()->flash('error', 'Karyawan ' . $employee->name . ' belum clock-in hari ini.');
+            session()->flash('error', 'Anda belum clock-in hari ini.');
             return;
         }
 
         if ($attendance->check_out) {
-            session()->flash('error', 'Karyawan ' . $employee->name . ' sudah clock-out hari ini.');
+            session()->flash('error', 'Anda sudah clock-out hari ini.');
             return;
         }
 
@@ -619,12 +741,18 @@ class HRManager extends Component
             'description' => $employee->name . ' clock-out at ' . $currentTime . ' (Durasi kerja: ' . $durationStr . ')',
         ]);
 
-        session()->flash('success', 'Clock-out berhasil untuk ' . $employee->name . ' pada pukul ' . Carbon::parse($currentTime)->format('H:i') . '. Durasi kerja: ' . $durationStr . '.');
+        session()->flash('success', 'Clock-out berhasil pada pukul ' . Carbon::parse($currentTime)->format('H:i') . '. Durasi kerja: ' . $durationStr . '.');
     }
 
-    // Attendance Settings
+    // Attendance Settings - Hanya untuk admin
     public function openAttendanceSettings()
     {
+        // Validasi akses admin
+        if (!$this->isAdmin) {
+            session()->flash('error', 'Anda tidak memiliki akses untuk mengatur pengaturan absensi.');
+            return;
+        }
+
         $setting = AttendanceSetting::where('is_active', true)->first();
 
         if ($setting) {
@@ -656,6 +784,12 @@ class HRManager extends Component
 
     public function saveAttendanceSettings()
     {
+        // Validasi akses admin
+        if (!$this->isAdmin) {
+            session()->flash('error', 'Anda tidak memiliki akses untuk mengatur pengaturan absensi.');
+            return;
+        }
+
         $this->validate([
             'setting_office_name' => 'required|string|max:255',
             'setting_latitude' => 'required|numeric|between:-90,90',
@@ -713,7 +847,6 @@ class HRManager extends Component
         $departments = Department::orderBy('name')->paginate(10);
         $leaves = Leave::with('employee')->orderBy('created_at', 'desc')->paginate(10);
 
-        // Get attendance setting for display
         $attendanceSetting = AttendanceSetting::where('is_active', true)->first();
 
         return view('livewire.h-r-manager', [
@@ -724,26 +857,24 @@ class HRManager extends Component
             'leaves' => $leaves,
             'allEmployees' => Employee::all(),
             'attendanceSetting' => $attendanceSetting,
+            'currentEmployee' => $this->currentEmployee,
+            'isAdmin' => $this->isAdmin, // Kirim ke view
         ]);
     }
+
     private function parseWorkTime($time)
     {
-        // Remove any extra whitespace
         $time = trim($time);
 
         try {
-            // Try parsing with H:i:s format first (most common from database)
             return Carbon::createFromFormat('H:i:s', $time);
         } catch (\Exception $e1) {
             try {
-                // Try parsing with H:i format
                 return Carbon::createFromFormat('H:i', $time);
             } catch (\Exception $e2) {
                 try {
-                    // Try parsing with g:i A format (for AM/PM)
                     return Carbon::createFromFormat('g:i A', $time);
                 } catch (\Exception $e3) {
-                    // If all fails, try creating a time from string
                     return Carbon::parse($time);
                 }
             }

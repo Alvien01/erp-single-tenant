@@ -1,19 +1,28 @@
 <div class="space-y-6">
+    <!-- Header -->
     <div class="flex items-center justify-between">
         <div>
             <h1 class="text-3xl font-bold font-display text-[var(--color-text)]">Human Resources</h1>
             <p class="text-sm text-gray-500 mt-1">Manage employee records, log daily attendance, calculate monthly payroll, approve cuti, and manage departments.</p>
         </div>
-        @if($activeTab === 'employees')
+        @if ($activeTab === 'employees')
             <button wire:click="createEmployee" class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 active:bg-blue-900 focus:outline-none transition ease-in-out duration-150">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg>
                 Add Employee
             </button>
         @elseif($activeTab === 'attendance')
-            <button wire:click="openAttendanceSettings" class="inline-flex items-center px-4 py-2 bg-slate-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-slate-700 active:bg-slate-900 focus:outline-none transition ease-in-out duration-150 cursor-pointer">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                Attendance Settings
-            </button>
+            @if($isAdmin)
+                <button wire:click="openAttendanceSettings" class="inline-flex items-center px-4 py-2 bg-slate-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-slate-700 active:bg-slate-900 focus:outline-none transition ease-in-out duration-150 cursor-pointer">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                    Attendance Settings
+                </button>
+            @else
+                <!-- Tombol tidak muncul untuk non-admin -->
+                <div></div>
+            @endif
         @elseif($activeTab === 'payroll')
             <button wire:click="createPayroll" class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 active:bg-blue-900 focus:outline-none transition ease-in-out duration-150">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -43,6 +52,11 @@
             <span class="font-medium">Error!</span> {{ session('error') }}
         </div>
     @endif
+    @if (session()->has('info'))
+        <div class="p-4 mb-4 text-sm text-blue-800 rounded-lg bg-blue-50 border border-blue-200" role="alert">
+            <span class="font-medium">Info!</span> {{ session('info') }}
+        </div>
+    @endif
 
     <!-- Navigation Tabs -->
     <div class="border-b border-gray-200 font-display">
@@ -65,7 +79,7 @@
         </nav>
     </div>
 
-    @if($activeTab === 'employees')
+    @if ($activeTab === 'employees')
         <!-- Search Employee -->
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div class="flex-1 max-w-md relative">
@@ -107,23 +121,20 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="py-12 text-center text-gray-500">
-                                    No employee records found.
-                                </td>
+                                <td colspan="7" class="py-12 text-center text-gray-500">No employee records found.</td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
-            @if($employees->hasPages())
-                <div class="px-6 py-4 border-t border-gray-200">
-                    {{ $employees->links() }}
-                </div>
+            @if ($employees->hasPages())
+                <div class="px-6 py-4 border-t border-gray-200">{{ $employees->links() }}</div>
             @endif
         </div>
+
     @elseif($activeTab === 'attendance')
         <!-- Geolocation & Time Settings Stats banner -->
-        @if($attendanceSetting)
+        @if ($attendanceSetting)
             <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 font-sans mb-6">
                 <div class="flex items-center space-x-3">
                     <div class="p-2.5 bg-blue-600 rounded-lg text-white">
@@ -145,13 +156,17 @@
         @else
             <div class="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-lg text-sm mb-6 flex justify-between items-center font-sans">
                 <span>Pengaturan lokasi & jam kerja absensi belum dibuat.</span>
-                <button wire:click="openAttendanceSettings" class="bg-amber-600 text-white px-3 py-1.5 rounded text-xs font-semibold hover:bg-amber-700 transition">Atur Sekarang</button>
+                @if($isAdmin)
+                    <button wire:click="openAttendanceSettings" class="bg-amber-600 text-white px-3 py-1.5 rounded text-xs font-semibold hover:bg-amber-700 transition">Atur Sekarang</button>
+                @else
+                    <span class="text-xs text-amber-600">Hubungi admin untuk mengatur</span>
+                @endif
             </div>
         @endif
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 font-sans">
             <!-- Clock In/Clock Out Card -->
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 flex flex-col justify-between" 
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 flex flex-col font-sans" 
                  x-data="{ 
                     lat: null, 
                     lng: null, 
@@ -168,18 +183,16 @@
                     },
 
                     calculateDistance(lat1, lon1, lat2, lon2) {
-                        const R = 6371e3; // meters
+                        const R = 6371e3;
                         const phi1 = lat1 * Math.PI/180;
                         const phi2 = lat2 * Math.PI/180;
                         const deltaPhi = (lat2-lat1) * Math.PI/180;
                         const deltaLambda = (lon2-lon1) * Math.PI/180;
-
                         const a = Math.sin(deltaPhi/2) * Math.sin(deltaPhi/2) +
                                   Math.cos(phi1) * Math.cos(phi2) *
                                   Math.sin(deltaLambda/2) * Math.sin(deltaLambda/2);
                         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-
-                        return R * c; // meters
+                        return R * c;
                     },
 
                     getCoordinates(showNotice = true) {
@@ -189,14 +202,12 @@
                         }
                         this.checking = true;
                         this.errorMsg = null;
-
                         navigator.geolocation.getCurrentPosition(
                             (position) => {
                                 this.lat = position.coords.latitude;
                                 this.lng = position.coords.longitude;
                                 this.accuracy = position.coords.accuracy;
                                 this.checking = false;
-                                
                                 if (this.officeLat && this.officeLng) {
                                     this.distance = this.calculateDistance(this.lat, this.lng, this.officeLat, this.officeLng);
                                 }
@@ -216,9 +227,7 @@
                                     default:
                                         this.errorMsg = 'Gagal mendeteksi lokasi.';
                                 }
-                                if(showNotice) {
-                                    alert(this.errorMsg);
-                                }
+                                if(showNotice) alert(this.errorMsg);
                             },
                             { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
                         );
@@ -234,71 +243,91 @@
                         </button>
                     </h3>
 
-                    <div class="mt-4 space-y-4">
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider">Pilih Karyawan</label>
-                            <select wire:model="clock_employee_id" class="mt-1.5 block w-full border border-gray-300 rounded-md py-2 px-3 text-sm bg-white focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">-- Pilih Karyawan --</option>
-                                @foreach($allEmployees as $e)
-                                    <option value="{{ $e->id }}">{{ $e->employee_number }} - {{ $e->name }}</option>
-                                @endforeach
-                            </select>
+                    <!-- Current User Info -->
+                    @if($currentEmployee)
+                        <div class="mt-4 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="text-sm font-bold text-gray-900">{{ $currentEmployee->name }}</div>
+                                    <div class="text-xs text-gray-600">{{ $currentEmployee->employee_number }}</div>
+                                    <div class="text-xs text-gray-500">{{ $currentEmployee->position }} @if($currentEmployee->department) - {{ $currentEmployee->department }} @endif</div>
+                                </div>
+                                <span class="px-2 py-1 bg-emerald-600 text-white text-[10px] font-bold rounded-full uppercase">AKTIF</span>
+                            </div>
+                            <div class="mt-2 text-xs text-emerald-700">
+                                <span class="font-semibold">✅</span> Anda dapat melakukan absensi
+                            </div>
                         </div>
+                    @else
+                        <div class="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="text-sm font-bold text-gray-900">{{ Auth::user()->name ?? 'Guest' }}</div>
+                                    <div class="text-xs text-gray-600">Membuat akun karyawan...</div>
+                                </div>
+                                <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-yellow-600"></div>
+                            </div>
+                            <div class="mt-2 text-xs text-yellow-700">
+                                <span class="font-semibold">⏳</span> Sedang menyiapkan akun karyawan...
+                            </div>
+                        </div>
+                    @endif
 
-                        <!-- GPS Details Box -->
-                        <div class="p-3.5 rounded-lg border text-sm" :class="errorMsg ? 'bg-red-50 border-red-200 text-red-800' : (lat ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-gray-50 border-gray-200 text-gray-600')">
-                            <div class="font-bold flex items-center justify-between">
-                                <span>Status Lokasi GPS</span>
-                                <span class="h-2 w-2 rounded-full" :class="errorMsg ? 'bg-red-500' : (lat ? 'bg-emerald-500' : 'bg-gray-400')"></span>
-                            </div>
-                            <div class="mt-2 space-y-1 text-xs font-mono">
-                                <template x-if="checking">
-                                    <div class="text-gray-500 animate-pulse">Mendeteksi koordinat GPS Anda...</div>
-                                </template>
-                                <template x-if="!checking && lat">
-                                    <div>
-                                        <div class="flex justify-between">
-                                            <span>Latitude:</span>
-                                            <span class="font-bold" x-text="lat.toFixed(6)"></span>
+                    <!-- GPS Details Box -->
+                    <div class="mt-4 p-3.5 rounded-lg border text-sm" 
+                         :class="errorMsg ? 'bg-red-50 border-red-200 text-red-800' : (lat ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-gray-50 border-gray-200 text-gray-600')">
+                        <div class="font-bold flex items-center justify-between">
+                            <span>Status Lokasi GPS</span>
+                            <span class="h-2 w-2 rounded-full" :class="errorMsg ? 'bg-red-500' : (lat ? 'bg-emerald-500' : 'bg-gray-400')"></span>
+                        </div>
+                        <div class="mt-2 space-y-1 text-xs font-mono">
+                            <template x-if="checking">
+                                <div class="text-gray-500 animate-pulse">Mendeteksi koordinat GPS Anda...</div>
+                            </template>
+                            <template x-if="!checking && lat">
+                                <div>
+                                    <div class="flex justify-between"><span>Latitude:</span><span class="font-bold" x-text="lat.toFixed(6)"></span></div>
+                                    <div class="flex justify-between mt-1"><span>Longitude:</span><span class="font-bold" x-text="lng.toFixed(6)"></span></div>
+                                    <div class="flex justify-between mt-1 border-t border-emerald-100 pt-1"><span>Akurasi GPS:</span><span x-text="'± ' + Math.round(accuracy) + ' meter'"></span></div>
+                                    <template x-if="distance !== null">
+                                        <div class="flex justify-between mt-1 font-sans">
+                                            <span>Jarak ke Kantor:</span>
+                                            <span class="font-bold" :class="distance > maxRadius ? 'text-red-600' : 'text-emerald-700'" x-text="Math.round(distance) + ' meter'"></span>
                                         </div>
-                                        <div class="flex justify-between mt-1">
-                                            <span>Longitude:</span>
-                                            <span class="font-bold" x-text="lng.toFixed(6)"></span>
-                                        </div>
-                                        <div class="flex justify-between mt-1 border-t border-emerald-100 pt-1">
-                                            <span>Akurasi GPS:</span>
-                                            <span x-text="'± ' + Math.round(accuracy) + ' meter'"></span>
-                                        </div>
-                                        <template x-if="distance !== null">
-                                            <div class="flex justify-between mt-1 font-sans">
-                                                <span>Jarak ke Kantor:</span>
-                                                <span class="font-bold" :class="distance > maxRadius ? 'text-red-600' : 'text-emerald-700'" x-text="Math.round(distance) + ' meter'"></span>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </template>
-                                <template x-if="!checking && errorMsg">
-                                    <div class="text-red-700" x-text="errorMsg"></div>
-                                </template>
-                                <template x-if="!checking && !lat && !errorMsg">
-                                    <div class="text-gray-500">Izin lokasi diperlukan. Klik Refresh GPS.</div>
-                                </template>
-                            </div>
+                                    </template>
+                                </div>
+                            </template>
+                            <template x-if="!checking && errorMsg">
+                                <div class="text-red-700" x-text="errorMsg"></div>
+                            </template>
+                            <template x-if="!checking && !lat && !errorMsg">
+                                <div class="text-gray-500">Izin lokasi diperlukan. Klik Refresh GPS.</div>
+                            </template>
                         </div>
                     </div>
                 </div>
 
                 <div class="mt-6 space-y-3">
                     <button type="button" 
-                            @click="if(!lat) { alert('GPS koordinat belum didapatkan!'); return; } $wire.clockIn($wire.clock_employee_id, lat, lng)"
-                            class="w-full inline-flex justify-center items-center px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md font-bold text-sm shadow-sm transition cursor-pointer"
+                            @if($currentEmployee)
+                                @click="if(!lat) { alert('GPS koordinat belum didapatkan!'); return; } $wire.clockIn(lat, lng)"
+                                class="w-full inline-flex justify-center items-center px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md font-bold text-sm shadow-sm transition cursor-pointer"
+                            @else
+                                disabled
+                                class="w-full inline-flex justify-center items-center px-4 py-3 bg-gray-400 text-white rounded-md font-bold text-sm shadow-sm cursor-not-allowed"
+                            @endif
                     >
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path></svg>
                         CLOCK IN (Masuk)
                     </button>
                     <button type="button" 
-                            @click="if(!lat) { alert('GPS koordinat belum didapatkan!'); return; } $wire.clockOut($wire.clock_employee_id, lat, lng)"
-                            class="w-full inline-flex justify-center items-center px-4 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-md font-bold text-sm shadow-sm transition cursor-pointer"
+                            @if($currentEmployee)
+                                @click="if(!lat) { alert('GPS koordinat belum didapatkan!'); return; } $wire.clockOut(lat, lng)"
+                                class="w-full inline-flex justify-center items-center px-4 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-md font-bold text-sm shadow-sm transition cursor-pointer"
+                            @else
+                                disabled
+                                class="w-full inline-flex justify-center items-center px-4 py-3 bg-gray-400 text-white rounded-md font-bold text-sm shadow-sm cursor-not-allowed"
+                            @endif
                     >
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h1a3 3 0 013 3v1"></path></svg>
                         CLOCK OUT (Pulang)
@@ -381,12 +410,11 @@
                     </table>
                 </div>
                 @if($attendances->hasPages())
-                    <div class="px-6 py-4 border-t border-gray-200">
-                        {{ $attendances->links() }}
-                    </div>
+                    <div class="px-6 py-4 border-t border-gray-200">{{ $attendances->links() }}</div>
                 @endif
             </div>
         </div>
+
     @elseif($activeTab === 'payroll')
         <!-- Payroll Table -->
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden font-sans">
@@ -394,12 +422,12 @@
                 <table class="min-w-full divide-y divide-gray-200 text-sm">
                     <thead>
                         <tr class="bg-gray-50 text-left font-semibold text-gray-500">
-                            <th class="py-3.5 px-6">Period</th>
-                            <th class="py-3.5 px-6">Employee</th>
-                            <th class="py-3.5 px-6 text-right">Basic Salary</th>
-                            <th class="py-3.5 px-6 text-right">Allowances</th>
-                            <th class="py-3.5 px-6 text-right">Deductions</th>
-                            <th class="py-3.5 px-6 text-right">Take Home Pay</th>
+                            <th class="py-3.5 px-6">Periode</th>
+                            <th class="py-3.5 px-6">Karyawan</th>
+                            <th class="py-3.5 px-6 text-right">Gaji Dasar</th>
+                            <th class="py-3.5 px-6 text-right">Tunjangan</th>
+                            <th class="py-3.5 px-6 text-right">Potongan</th>
+                            <th class="py-3.5 px-6 text-right">Gaji Bersih</th>
                             <th class="py-3.5 px-6 text-center">Status</th>
                             <th class="py-3.5 px-6 text-center">Action</th>
                         </tr>
@@ -426,58 +454,52 @@
                                     @endif
                                 </td>
                             </tr>
-                            <!-- Expandable Slip Gaji Detail Row -->
                             @if($pr->components && $pr->components->count() > 0)
-                            <tr class="bg-blue-50 bg-opacity-50">
-                                <td colspan="8" class="py-0 px-6">
-                                    <div x-data="{ open: false }">
-                                        <button @click="open = !open" class="text-xs text-blue-600 font-semibold py-2 cursor-pointer hover:underline">
-                                            <span x-text="open ? '▾ Hide Slip Gaji Detail' : '▸ View Slip Gaji Detail'"></span>
-                                        </button>
-                                        <div x-show="open" x-transition class="pb-4">
-                                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
-                                                <!-- Allowances -->
-                                                <div>
-                                                    <h5 class="text-xs font-bold text-emerald-700 uppercase mb-2">Allowances</h5>
-                                                    @foreach($pr->components->where('type', 'allowance') as $comp)
-                                                        <div class="flex justify-between text-xs text-gray-600 border-b border-gray-100 py-1">
-                                                            <span>{{ $comp->name }}</span>
-                                                            <span class="font-mono text-emerald-600">+Rp {{ number_format($comp->amount, 0, ',', '.') }}</span>
-                                                        </div>
-                                                    @endforeach
-                                                </div>
-                                                <!-- Deductions -->
-                                                <div>
-                                                    <h5 class="text-xs font-bold text-red-700 uppercase mb-2">Deductions</h5>
-                                                    @foreach($pr->components->where('type', 'deduction') as $comp)
-                                                        <div class="flex justify-between text-xs text-gray-600 border-b border-gray-100 py-1">
-                                                            <span>{{ $comp->name }}</span>
-                                                            <span class="font-mono text-red-600">-Rp {{ number_format($comp->amount, 0, ',', '.') }}</span>
-                                                        </div>
-                                                    @endforeach
+                                <tr class="bg-blue-50 bg-opacity-50">
+                                    <td colspan="8" class="py-0 px-6">
+                                        <div x-data="{ open: false }">
+                                            <button @click="open = !open" class="text-xs text-blue-600 font-semibold py-2 cursor-pointer hover:underline">
+                                                <span x-text="open ? '▾ Hide Slip Gaji Detail' : '▸ View Slip Gaji Detail'"></span>
+                                            </button>
+                                            <div x-show="open" x-transition class="pb-4">
+                                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
+                                                    <div>
+                                                        <h5 class="text-xs font-bold text-emerald-700 uppercase mb-2">Allowances</h5>
+                                                        @foreach($pr->components->where('type', 'allowance') as $comp)
+                                                            <div class="flex justify-between text-xs text-gray-600 border-b border-gray-100 py-1">
+                                                                <span>{{ $comp->name }}</span>
+                                                                <span class="font-mono text-emerald-600">+Rp {{ number_format($comp->amount, 0, ',', '.') }}</span>
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
+                                                    <div>
+                                                        <h5 class="text-xs font-bold text-red-700 uppercase mb-2">Deductions</h5>
+                                                        @foreach($pr->components->where('type', 'deduction') as $comp)
+                                                            <div class="flex justify-between text-xs text-gray-600 border-b border-gray-100 py-1">
+                                                                <span>{{ $comp->name }}</span>
+                                                                <span class="font-mono text-red-600">-Rp {{ number_format($comp->amount, 0, ',', '.') }}</span>
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </td>
-                            </tr>
+                                    </td>
+                                </tr>
                             @endif
                         @empty
                             <tr>
-                                <td colspan="8" class="py-12 text-center text-gray-500">
-                                    No payroll records generated yet.
-                                </td>
+                                <td colspan="8" class="py-12 text-center text-gray-500">No payroll records generated yet.</td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
             @if($payrolls->hasPages())
-                <div class="px-6 py-4 border-t border-gray-200">
-                    {{ $payrolls->links() }}
-                </div>
+                <div class="px-6 py-4 border-t border-gray-200">{{ $payrolls->links() }}</div>
             @endif
         </div>
+
     @elseif($activeTab === 'departments')
         <!-- Departments List -->
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden font-sans">
@@ -508,20 +530,17 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="4" class="py-12 text-center text-gray-500">
-                                    No departments found.
-                                </td>
+                                <td colspan="4" class="py-12 text-center text-gray-500">No departments found.</td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
             @if($departments->hasPages())
-                <div class="px-6 py-4 border-t border-gray-200">
-                    {{ $departments->links() }}
-                </div>
+                <div class="px-6 py-4 border-t border-gray-200">{{ $departments->links() }}</div>
             @endif
         </div>
+
     @elseif($activeTab === 'leaves')
         <!-- Leaves request list -->
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden font-sans">
@@ -564,18 +583,14 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="py-12 text-center text-gray-500">
-                                    No leave requests logged.
-                                </td>
+                                <td colspan="6" class="py-12 text-center text-gray-500">No leave requests logged.</td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
             @if($leaves->hasPages())
-                <div class="px-6 py-4 border-t border-gray-200">
-                    {{ $leaves->links() }}
-                </div>
+                <div class="px-6 py-4 border-t border-gray-200">{{ $leaves->links() }}</div>
             @endif
         </div>
     @endif
@@ -584,9 +599,7 @@
     @if($isOpen)
         <div class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
             <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                
                 <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" wire:click="closeModal"></div>
-
                 <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
                 <div class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
@@ -605,8 +618,9 @@
                             <div class="mt-4 space-y-4 font-sans">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700">Employee ID Code</label>
-                                    <input type="text" wire:model="employee_number" class="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm">
+                                    <input type="text" wire:model="employee_number" class="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm bg-gray-100 cursor-not-allowed" disabled readonly>
                                     @error('employee_number') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    <p class="text-xs text-gray-500 mt-1">Employee ID is auto-generated and cannot be changed.</p>
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700">Full Name</label>
@@ -645,6 +659,25 @@
                                         @error('emp_salary') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
+                                
+                                <div class="border-t border-gray-200 pt-4 mt-2">
+                                    <h4 class="text-sm font-semibold text-gray-700 mb-3">Tunjangan Harian (Allowance per Day)</h4>
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700">Transport Allowance (Rp/hari)</label>
+                                            <input type="number" wire:model="emp_transport_allowance" class="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm" placeholder="30000">
+                                            @error('emp_transport_allowance') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                            <p class="text-xs text-gray-500 mt-1">Default: Rp 30.000/hari</p>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700">Meal Allowance (Rp/hari)</label>
+                                            <input type="number" wire:model="emp_meal_allowance" class="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm" placeholder="25000">
+                                            @error('emp_meal_allowance') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                            <p class="text-xs text-gray-500 mt-1">Default: Rp 25.000/hari</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700">Status</label>
                                     <select wire:model="emp_status" class="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm bg-white">
@@ -655,20 +688,14 @@
                             </div>
                         </div>
                         <div class="mt-6 flex justify-end space-x-3">
-                            <button type="button" wire:click="closeModal" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none font-display">
-                                Cancel
-                            </button>
-                            <button type="button" wire:click="saveEmployee" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none font-display font-semibold">
-                                Save Employee
-                            </button>
+                            <button type="button" wire:click="closeModal" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none font-display">Cancel</button>
+                            <button type="button" wire:click="saveEmployee" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none font-display font-semibold">Save Employee</button>
                         </div>
 
                     <!-- Modal payroll -->
                     @elseif($modalType === 'payroll')
                         <div>
-                            <h3 class="text-lg leading-6 font-medium text-gray-900 font-display" id="modal-title">
-                                Generate Payroll Draft
-                            </h3>
+                            <h3 class="text-lg leading-6 font-medium text-gray-900 font-display" id="modal-title">Generate Payroll Draft</h3>
                             <div class="mt-4 space-y-4 font-sans">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700">Period Month</label>
@@ -685,20 +712,14 @@
                             </div>
                         </div>
                         <div class="mt-6 flex justify-end space-x-3">
-                            <button type="button" wire:click="closeModal" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none font-display">
-                                Cancel
-                            </button>
-                            <button type="button" wire:click="generatePayroll" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none font-display font-semibold">
-                                Generate Draft
-                            </button>
+                            <button type="button" wire:click="closeModal" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none font-display">Cancel</button>
+                            <button type="button" wire:click="generatePayroll" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none font-display font-semibold">Generate Draft</button>
                         </div>
 
                     <!-- Modal department -->
                     @elseif($modalType === 'department')
                         <div>
-                            <h3 class="text-lg leading-6 font-medium text-gray-900 font-display" id="modal-title">
-                                {{ $dept_id ? 'Edit Department' : 'Add New Department' }}
-                            </h3>
+                            <h3 class="text-lg leading-6 font-medium text-gray-900 font-display" id="modal-title">{{ $dept_id ? 'Edit Department' : 'Add New Department' }}</h3>
                             <div class="mt-4 space-y-4 font-sans">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700">Department Name</label>
@@ -718,20 +739,14 @@
                             </div>
                         </div>
                         <div class="mt-6 flex justify-end space-x-3">
-                            <button type="button" wire:click="closeModal" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none font-display">
-                                Cancel
-                            </button>
-                            <button type="button" wire:click="saveDepartment" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none font-display font-semibold">
-                                Save Department
-                            </button>
+                            <button type="button" wire:click="closeModal" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none font-display">Cancel</button>
+                            <button type="button" wire:click="saveDepartment" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none font-display font-semibold">Save Department</button>
                         </div>
 
                     <!-- Modal leave -->
                     @elseif($modalType === 'leave')
                         <div>
-                            <h3 class="text-lg leading-6 font-medium text-gray-900 font-display" id="modal-title">
-                                {{ $leave_id ? 'Edit Leave Request' : 'Request Cuti' }}
-                            </h3>
+                            <h3 class="text-lg leading-6 font-medium text-gray-900 font-display" id="modal-title">{{ $leave_id ? 'Edit Leave Request' : 'Request Cuti' }}</h3>
                             <div class="mt-4 space-y-4 font-sans">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700">Employee</label>
@@ -771,25 +786,20 @@
                             </div>
                         </div>
                         <div class="mt-6 flex justify-end space-x-3">
-                            <button type="button" wire:click="closeModal" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none font-display">
-                                Cancel
-                            </button>
-                            <button type="button" wire:click="saveLeave" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none font-display font-semibold">
-                                Submit Leave Request
-                            </button>
+                            <button type="button" wire:click="closeModal" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none font-display">Cancel</button>
+                            <button type="button" wire:click="saveLeave" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none font-display font-semibold">Submit Leave Request</button>
                         </div>
+
+                    <!-- Modal attendance settings -->
                     @elseif($modalType === 'attendance-settings')
                         <div>
-                            <h3 class="text-lg leading-6 font-semibold text-gray-900 font-display" id="modal-title">
-                                Pengaturan Absensi (GPS & Jam Kerja)
-                            </h3>
+                            <h3 class="text-lg leading-6 font-semibold text-gray-900 font-display" id="modal-title">Pengaturan Absensi (GPS & Jam Kerja)</h3>
                             <div class="mt-4 space-y-4 font-sans text-sm">
                                 <div>
                                     <label class="block font-medium text-gray-700">Nama Kantor / Lokasi</label>
                                     <input type="text" wire:model="setting_office_name" class="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-1 focus:ring-blue-500">
                                     @error('setting_office_name') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
-
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
                                         <label class="block font-medium text-gray-700">Office Latitude</label>
@@ -802,7 +812,6 @@
                                         @error('setting_longitude') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
-
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
                                         <label class="block font-medium text-gray-700">Allowed Radius (Meter)</label>
@@ -816,7 +825,6 @@
                                         </label>
                                     </div>
                                 </div>
-
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
                                         <label class="block font-medium text-gray-700">Jam Mulai Kerja</label>
@@ -829,7 +837,6 @@
                                         @error('setting_work_end') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
-
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
                                         <label class="block font-medium text-gray-700">Toleransi Terlambat (Menit)</label>
@@ -845,12 +852,8 @@
                             </div>
                         </div>
                         <div class="mt-6 flex justify-end space-x-3">
-                            <button type="button" wire:click="closeModal" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none font-display">
-                                Batal
-                            </button>
-                            <button type="button" wire:click="saveAttendanceSettings" class="inline-flex justify-center px-4 py-2 text-sm font-semibold text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none font-display">
-                                Simpan Pengaturan
-                            </button>
+                            <button type="button" wire:click="closeModal" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none font-display">Batal</button>
+                            <button type="button" wire:click="saveAttendanceSettings" class="inline-flex justify-center px-4 py-2 text-sm font-semibold text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none font-display">Simpan Pengaturan</button>
                         </div>
                     @endif
                 </div>
