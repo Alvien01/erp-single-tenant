@@ -8,6 +8,8 @@ use App\Models\Purchase;
 use App\Models\StockItem;
 use App\Models\Warehouse;
 use App\Models\Employee;
+use App\Models\Attendance;
+use App\Models\AttendanceSetting;
 use App\Models\ActivityLog;
 use App\Models\DeliveryOrder;
 use App\Models\Approval;
@@ -22,6 +24,12 @@ class Dashboard extends Component
     public string $customEnd    = '';
     public bool   $showDatePicker = false;
 
+    // Attendance properties
+    public $currentEmployeeId = null;
+    public $currentEmployee = null;
+    public $isAdmin = false;
+    public $att_filter_date;
+
     protected $queryString = ['datePreset', 'customStart', 'customEnd'];
 
     public function mount(): void
@@ -29,6 +37,241 @@ class Dashboard extends Component
         if ($this->datePreset === 'custom') {
             $this->customStart = $this->customStart ?: now()->startOfMonth()->toDateString();
             $this->customEnd   = $this->customEnd   ?: now()->toDateString();
+        }
+
+        $this->att_filter_date = now()->format('Y-m-d');
+        $this->checkAdminRole();
+        $this->loadOrCreateCurrentEmployee();
+    }
+
+    private function checkAdminRole()
+    {
+        $user = Auth::user();
+        if (!$user) {
+            $this->isAdmin = false;
+            return;
+        }
+        $this->isAdmin = isset($user->role) && $user->role === 'admin';
+    }
+
+    private function loadOrCreateCurrentEmployee()
+    {
+        $user = Auth::user();
+        if (!$user) return;
+
+        $employee = Employee::where('user_id', $user->id)->first();
+        if (!$employee) {
+            $employee = Employee::where('email', $user->email)->first();
+        }
+        if (!$employee) {
+            $lastEmployee = Employee::orderBy('id', 'desc')->first();
+            $nextNumber = $lastEmployee ? intval(substr($lastEmployee->employee_number, -3)) + 1 : 1;
+            $employeeNumber = 'EMP-' . now()->format('Ymd') . '-' . sprintf('%03d', $nextNumber);
+
+            $employee = Employee::create([
+                'user_id' => $user->id,
+                'employee_number' => $employeeNumber,
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone ?? '',
+                'position' => 'Staff',
+                'department' => 'General',
+                'join_date' => now()->format('Y-m-d'),
+                'salary' => 0,
+                'status' => 'active',
+                'transport_allowance' => 30000,
+                'meal_allowance' => 25000,
+            ]);
+        }
+
+        if ($employee) {
+            $this->currentEmployeeId = $employee->id;
+            $this->currentEmployee = $employee;
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // Attendance Clock-In / Clock-Out
+    // ──────────────────────────────────────────────────────────────────
+
+    public function clockIn($latitude, $longitude, $address = '')
+    {
+        if (!Auth::check()) {
+            session()->flash('att_error', 'Silakan login terlebih dahulu.');
+            return;
+        }
+
+        if (!$this->currentEmployeeId) {
+            $this->loadOrCreateCurrentEmployee();
+            if (!$this->currentEmployeeId) {
+                session()->flash('att_error', 'Gagal membuat akun karyawan. Silakan hubungi admin.');
+                return;
+            }
+        }
+
+        $employee = Employee::findOrFail($this->currentEmployeeId);
+        $today = now()->format('Y-m-d');
+        $currentTime = now()->format('H:i:s');
+
+        $existing = Attendance::where('employee_id', $this->currentEmployeeId)
+            ->where('date', $today)
+            ->first();
+
+        if ($existing && $existing->check_in) {
+            session()->flash('att_error', 'Anda sudah melakukan clock-in hari ini.');
+            return;
+        }
+
+        $setting = AttendanceSetting::where('is_active', true)->first();
+        $distance = null;
+        $status = 'present';
+        $notes = '';
+
+        if ($setting) {
+            try {
+                $workStartTime = $setting->work_start_time ?? $setting->work_start ?? '08:00:00';
+                $workStart = $this->parseWorkTime($workStartTime);
+
+                $earlyMinutes = $setting->early_checkin_minutes ?? $setting->early_checkin ?? 60;
+                $earlyLimit = $workStart->copy()->subMinutes((int)$earlyMinutes);
+
+                $lateMinutes = $setting->late_tolerance_minutes ?? $setting->late_tolerance ?? 15;
+                $lateLimit = $workStart->copy()->addMinutes((int)$lateMinutes);
+
+                $now = Carbon::now();
+
+                if ($now->lt($earlyLimit)) {
+                    session()->flash('att_error', 'Belum bisa clock-in. Waktu clock-in dimulai pukul ' . $earlyLimit->format('H:i') . '.');
+                    return;
+                }
+
+                if ($now->gt($lateLimit)) {
+                    $status = 'late';
+                    $notes = 'Terlambat ' . $now->diffInMinutes($workStart) . ' menit';
+                }
+
+                $requireLocation = $setting->require_location ?? true;
+                if ($requireLocation && $latitude && $longitude) {
+                    $officeLat = $setting->office_latitude ?? $setting->latitude ?? 0;
+                    $officeLng = $setting->office_longitude ?? $setting->longitude ?? 0;
+
+                    if ($officeLat != 0 && $officeLng != 0) {
+                        $distance = AttendanceSetting::calculateDistance(
+                            (float)$latitude, (float)$longitude,
+                            (float)$officeLat, (float)$officeLng
+                        );
+
+                        $maxRadius = $setting->allowed_radius ?? $setting->radius ?? 200;
+                        if ($distance > $maxRadius) {
+                            session()->flash('att_error', 'Lokasi Anda terlalu jauh dari kantor (' . round($distance) . 'm). Jarak maksimum: ' . $maxRadius . 'm.');
+                            return;
+                        }
+                    }
+                } elseif ($requireLocation && (!$latitude || !$longitude)) {
+                    session()->flash('att_error', 'Lokasi GPS diperlukan untuk clock-in. Aktifkan GPS pada perangkat Anda.');
+                    return;
+                }
+            } catch (\Exception $e) {
+                \Log::error('Clock-in time parsing error: ' . $e->getMessage());
+            }
+        }
+
+        Attendance::updateOrCreate(
+            ['employee_id' => $this->currentEmployeeId, 'date' => $today],
+            [
+                'check_in' => $currentTime,
+                'check_in_latitude' => $latitude ?: null,
+                'check_in_longitude' => $longitude ?: null,
+                'check_in_distance' => $distance,
+                'check_in_address' => $address ?: null,
+                'status' => $status,
+                'notes' => $notes ?: null,
+            ]
+        );
+
+        ActivityLog::create([
+            'user_id' => Auth::id() ?? 1,
+            'module' => 'HR',
+            'action' => 'Clock In',
+            'description' => $employee->name . ' clock-in at ' . $currentTime . ($distance ? ' (Distance: ' . round($distance) . 'm)' : ''),
+        ]);
+
+        session()->flash('att_success', 'Clock-in berhasil pada pukul ' . Carbon::parse($currentTime)->format('H:i') . ($status === 'late' ? ' (TERLAMBAT)' : '') . '.');
+    }
+
+    public function clockOut($latitude, $longitude, $address = '')
+    {
+        if (!Auth::check()) {
+            session()->flash('att_error', 'Silakan login terlebih dahulu.');
+            return;
+        }
+
+        if (!$this->currentEmployeeId) {
+            session()->flash('att_error', 'Anda belum melakukan clock-in hari ini.');
+            return;
+        }
+
+        $employee = Employee::findOrFail($this->currentEmployeeId);
+        $today = now()->format('Y-m-d');
+        $currentTime = now()->format('H:i:s');
+
+        $attendance = Attendance::where('employee_id', $this->currentEmployeeId)
+            ->where('date', $today)->first();
+
+        if (!$attendance || !$attendance->check_in) {
+            session()->flash('att_error', 'Anda belum clock-in hari ini.');
+            return;
+        }
+
+        if ($attendance->check_out) {
+            session()->flash('att_error', 'Anda sudah clock-out hari ini.');
+            return;
+        }
+
+        $setting = AttendanceSetting::where('is_active', true)->first();
+        $distance = null;
+
+        if ($setting && $setting->require_location && $latitude && $longitude) {
+            $distance = AttendanceSetting::calculateDistance(
+                $latitude, $longitude,
+                $setting->office_latitude, $setting->office_longitude
+            );
+        }
+
+        $attendance->update([
+            'check_out' => $currentTime,
+            'check_out_latitude' => $latitude,
+            'check_out_longitude' => $longitude,
+            'check_out_distance' => $distance,
+            'check_out_address' => $address ?: null,
+        ]);
+
+        $checkIn = Carbon::parse($attendance->check_in);
+        $checkOut = Carbon::parse($currentTime);
+        $duration = $checkIn->diff($checkOut);
+        $durationStr = $duration->format('%H jam %I menit');
+
+        ActivityLog::create([
+            'user_id' => Auth::id() ?? 1,
+            'module' => 'HR',
+            'action' => 'Clock Out',
+            'description' => $employee->name . ' clock-out at ' . $currentTime . ' (Durasi kerja: ' . $durationStr . ')',
+        ]);
+
+        session()->flash('att_success', 'Clock-out berhasil pada pukul ' . Carbon::parse($currentTime)->format('H:i') . '. Durasi kerja: ' . $durationStr . '.');
+    }
+
+    private function parseWorkTime($time)
+    {
+        $time = trim($time);
+        try {
+            return Carbon::createFromFormat('H:i:s', $time);
+        } catch (\Exception $e1) {
+            try {
+                return Carbon::createFromFormat('H:i', $time);
+            } catch (\Exception $e2) {
+                return Carbon::parse($time);
+            }
         }
     }
 
@@ -200,23 +443,55 @@ class Dashboard extends Component
             ->take(5)
             ->get();
 
+        // ── Attendance data ──────────────────────────────────────────
+        $today = now()->format('Y-m-d');
+        $attendanceSetting = AttendanceSetting::where('is_active', true)->first();
+
+        $todayAttendances = Attendance::with('employee')->where('date', $today)->get();
+        $attPresent = $todayAttendances->where('status', 'present')->count();
+        $attLate    = $todayAttendances->where('status', 'late')->count();
+        $attAbsent  = Employee::where('status', 'active')->count() - $todayAttendances->count();
+        $attAbsent  = max(0, $attAbsent);
+
+        $myAttendance = null;
+        if ($this->currentEmployeeId) {
+            $myAttendance = Attendance::where('employee_id', $this->currentEmployeeId)
+                ->where('date', $today)->first();
+        }
+
+        // Recent attendances (last 10 entries for today)
+        $recentAttendances = Attendance::with('employee')
+            ->where('date', $today)
+            ->orderBy('check_in', 'desc')
+            ->take(10)
+            ->get();
+
         return view('livewire.dashboard', [
-            'userRole'         => $role,
-            'totalSales'       => $totalSales,
-            'totalPurchases'   => $totalPurchases,
-            'stockCount'       => StockItem::sum('qty_on_hand') ?? 0,
-            'warehouseCount'   => Warehouse::count(),
-            'employeeCount'    => Employee::where('status', 'active')->count() ?: 12,
-            'recentSales'      => $recentSales,
-            'activities'       => ActivityLog::orderBy('created_at', 'desc')->take(5)->get(),
-            'pendingDeliveries'=> DeliveryOrder::whereIn('status', ['draft', 'ready'])->count(),
-            'pendingApprovals' => Approval::where('status', 'pending')->count(),
-            'activeSchedules'  => EmployeeSchedule::whereDate('date', '>=', now()->toDateString())->count(),
-            'salesTrend'       => $this->buildTrend($start, $end),
-            'dateStart'        => $start,
-            'dateEnd'          => $end,
-            'salesLast30Days'  => $this->salesLast30Days,
-            'salesCurrentFY'   => $this->salesCurrentFY,
+            'userRole'           => $role,
+            'totalSales'         => $totalSales,
+            'totalPurchases'     => $totalPurchases,
+            'stockCount'         => StockItem::sum('qty_on_hand') ?? 0,
+            'warehouseCount'     => Warehouse::count(),
+            'employeeCount'      => Employee::where('status', 'active')->count() ?: 12,
+            'recentSales'        => $recentSales,
+            'activities'         => ActivityLog::orderBy('created_at', 'desc')->take(5)->get(),
+            'pendingDeliveries'  => DeliveryOrder::whereIn('status', ['draft', 'ready'])->count(),
+            'pendingApprovals'   => Approval::where('status', 'pending')->count(),
+            'activeSchedules'    => EmployeeSchedule::whereDate('date', '>=', now()->toDateString())->count(),
+            'salesTrend'         => $this->buildTrend($start, $end),
+            'dateStart'          => $start,
+            'dateEnd'            => $end,
+            'salesLast30Days'    => $this->salesLast30Days,
+            'salesCurrentFY'     => $this->salesCurrentFY,
+            // Attendance data
+            'attendanceSetting'  => $attendanceSetting,
+            'attPresent'         => $attPresent,
+            'attLate'            => $attLate,
+            'attAbsent'          => $attAbsent,
+            'attTotal'           => $todayAttendances->count(),
+            'myAttendance'       => $myAttendance,
+            'currentEmployee'    => $this->currentEmployee,
+            'recentAttendances'  => $recentAttendances,
         ]);
     }
 }
