@@ -19,6 +19,11 @@
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                 Record Withholding Tax
             </button>
+        @elseif($activeTab === 'filings')
+            <button wire:click="createFiling" class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 active:bg-blue-900 focus:outline-none transition ease-in-out duration-150">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                Record Tax Filing (SPT)
+            </button>
         @endif
     </div>
 
@@ -40,6 +45,9 @@
             </button>
             <button wire:click="$set('activeTab', 'withholding')" class="border-b-2 py-4 px-1 text-sm font-medium {{ $activeTab === 'withholding' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
                 Withholding Tax (PPh)
+            </button>
+            <button wire:click="$set('activeTab', 'filings')" class="border-b-2 py-4 px-1 text-sm font-medium {{ $activeTab === 'filings' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+                Tax Filings (SPT)
             </button>
         </nav>
     </div>
@@ -226,6 +234,57 @@
                 </div>
             @endif
         </div>
+
+    @elseif($activeTab === 'filings')
+        <!-- Filings Table -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden font-sans">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead>
+                        <tr class="bg-gray-50 text-left font-semibold text-gray-500">
+                            <th class="py-3.5 px-6">Tax Type</th>
+                            <th class="py-3.5 px-6">Period</th>
+                            <th class="py-3.5 px-6 text-right">Amount (Rp)</th>
+                            <th class="py-3.5 px-6">Filing Date</th>
+                            <th class="py-3.5 px-6">NTPN / Receipt</th>
+                            <th class="py-3.5 px-6 text-center">Status</th>
+                            <th class="py-3.5 px-6 text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        @forelse($filings as $filing)
+                            <tr class="hover:bg-gray-50 transition duration-150">
+                                <td class="py-4 px-6 font-bold text-gray-900 font-mono">{{ strtoupper($filing->tax_type) }}</td>
+                                <td class="py-4 px-6 text-gray-700 font-semibold">{{ $filing->period }}</td>
+                                <td class="py-4 px-6 text-right font-mono font-bold text-gray-800">Rp {{ number_format($filing->amount, 2, ',', '.') }}</td>
+                                <td class="py-4 px-6 text-gray-500">{{ $filing->filing_date ? $filing->filing_date->format('Y-m-d') : '-' }}</td>
+                                <td class="py-4 px-6 font-mono text-gray-600">{{ $filing->ntpn ?: '-' }}</td>
+                                <td class="py-4 px-6 text-center">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                                        {{ $filing->status === 'filed' ? 'bg-emerald-100 text-emerald-800' : 'bg-yellow-100 text-yellow-800' }}
+                                    ">
+                                        {{ ucfirst($filing->status) }}
+                                    </span>
+                                </td>
+                                <td class="py-4 px-6 text-center space-x-2">
+                                    <button wire:click="editFiling({{ $filing->id }})" class="text-blue-600 hover:text-blue-900 font-medium cursor-pointer">Edit</button>
+                                    <button wire:click="deleteFiling({{ $filing->id }})" wire:confirm="Delete this filing record?" class="text-red-600 hover:text-red-900 font-medium cursor-pointer">Delete</button>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="7" class="py-12 text-center text-gray-500">No tax filings recorded.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+            @if($filings->hasPages())
+                <div class="px-6 py-4 border-t border-gray-200">
+                    {{ $filings->links() }}
+                </div>
+            @endif
+        </div>
     @endif
 
     <!-- Modals Section -->
@@ -367,6 +426,78 @@
                         <div class="mt-6 flex justify-end space-x-3">
                             <button type="button" wire:click="closeModal" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none">Cancel</button>
                             <button type="button" wire:click="saveWithholding" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none font-semibold font-display">Save Entry</button>
+                        </div>
+
+                    @elseif($modalType === 'filing')
+                        <div>
+                            <h3 class="text-lg leading-6 font-medium text-gray-900 font-display">
+                                {{ $filing_id ? 'Edit Tax Filing' : 'Record Tax Filing (SPT)' }}
+                            </h3>
+                            <div class="mt-4 space-y-4">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Tax Type</label>
+                                        <select wire:model.live="filing_tax_type" class="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm bg-white">
+                                            <option value="ppn">PPN (Value Added Tax)</option>
+                                            <option value="pph21">PPh Pasal 21 (Employee)</option>
+                                            <option value="pph23">PPh Pasal 23 (Services/Rent)</option>
+                                            <option value="pph25">PPh Pasal 25 (Monthly Installment)</option>
+                                            <option value="pph29">PPh Pasal 29 (Annual Tax Pay)</option>
+                                        </select>
+                                        @error('filing_tax_type') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Period (YYYY-MM)</label>
+                                        <input type="text" placeholder="e.g. 2026-06" wire:model.live="filing_period" class="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm">
+                                        @error('filing_period') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <div class="flex justify-between items-center">
+                                        <label class="block text-sm font-medium text-gray-700">Filing Amount (Rp)</label>
+                                        @if($suggested_amount !== null)
+                                            <button type="button" wire:click="applySuggestedAmount" class="text-xs text-blue-600 hover:text-blue-800 font-semibold cursor-pointer">
+                                                Use Suggested: Rp {{ number_format($suggested_amount, 0, ',', '.') }}
+                                            </button>
+                                        @endif
+                                    </div>
+                                    <input type="number" wire:model="filing_amount" class="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm">
+                                    @error('filing_amount') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Filing Date</label>
+                                        <input type="date" wire:model="filing_date" class="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm">
+                                        @error('filing_date') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">NTPN / BPE Receipt</label>
+                                        <input type="text" placeholder="Receipt / NTPN" wire:model="filing_ntpn" class="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm font-mono">
+                                        @error('filing_ntpn') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Status</label>
+                                    <select wire:model="filing_status" class="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm bg-white">
+                                        <option value="draft">Draft</option>
+                                        <option value="filed">Filed & Reported</option>
+                                    </select>
+                                    @error('filing_status') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Notes</label>
+                                    <textarea wire:model="filing_notes" placeholder="Optional notes..." class="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm" rows="3"></textarea>
+                                    @error('filing_notes') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-6 flex justify-end space-x-3">
+                            <button type="button" wire:click="closeModal" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none">Cancel</button>
+                            <button type="button" wire:click="saveFiling" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none font-semibold font-display">Save Filing</button>
                         </div>
                     @endif
                 </div>

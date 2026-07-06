@@ -61,6 +61,9 @@
     <!-- Navigation Tabs -->
     <div class="border-b border-gray-200 font-display">
         <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+            <button wire:click="$set('activeTab', 'dashboard')" class="py-4 px-1 border-b-2 font-medium text-sm transition-colors cursor-pointer {{ $activeTab === 'dashboard' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+                Dashboard
+            </button>
             <button wire:click="$set('activeTab', 'employees')" class="py-4 px-1 border-b-2 font-medium text-sm transition-colors cursor-pointer {{ $activeTab === 'employees' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
                 Employees
             </button>
@@ -79,7 +82,239 @@
         </nav>
     </div>
 
-    @if ($activeTab === 'employees')
+    @if ($activeTab === 'dashboard')
+        <!-- Dashboard Analitik HR & Recruitment -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-semibold text-gray-500">Total Karyawan</p>
+                        <p class="mt-2 text-3xl font-extrabold text-gray-900 font-mono">{{ number_format($stats['totalEmployees']) }}</p>
+                        <span class="text-xs text-gray-400">{{ $stats['activeEmployees'] }} karyawan aktif</span>
+                    </div>
+                    <div class="p-3 bg-blue-50 rounded-lg">
+                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-semibold text-gray-500">Anggaran Gaji Pokok</p>
+                        <p class="mt-2 text-2xl font-extrabold text-indigo-600 font-mono">Rp {{ number_format($stats['totalMonthlyPayroll'], 0, ',', '.') }}</p>
+                        <span class="text-xs text-gray-400">Total payroll bulanan</span>
+                    </div>
+                    <div class="p-3 bg-indigo-50 rounded-lg">
+                        <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-semibold text-gray-550">Lowongan Aktif</p>
+                        <p class="mt-2 text-3xl font-extrabold text-blue-600 font-mono">{{ $stats['activeJobOpenings'] }}</p>
+                        <span class="text-xs text-gray-400">Lowongan dibuka</span>
+                    </div>
+                    <div class="p-3 bg-blue-50 rounded-lg">
+                        <svg class="w-6 h-6 text-blue-650" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 4a2 2 0 012 2v7a2 2 0 01-2 2h-2a2 2 0 01-2-2V9a2 2 0 012-2h3m-6 3l-2 2m0-2.2v4.5"></path></svg>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-semibold text-gray-500">Total Pelamar ATS</p>
+                        <p class="mt-2 text-3xl font-extrabold text-gray-900 font-mono font-mono">{{ $stats['totalApplicants'] }}</p>
+                        <span class="text-xs text-gray-400">Kandidat terdaftar</span>
+                    </div>
+                    <div class="p-3 bg-gray-50 rounded-lg">
+                        <svg class="w-6 h-6 text-gray-650" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Attendance row --}}
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-white rounded-xl border border-gray-200 p-5 text-center">
+                <div class="inline-flex items-center justify-center w-10 h-10 bg-emerald-50 rounded-full mb-2">
+                    <svg class="w-5 h-5 text-emerald-650" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <div class="text-3xl font-extrabold text-emerald-700 font-mono">{{ $stats['attPresent'] }}</div>
+                <div class="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mt-0.5">Hadir Tepat Waktu</div>
+            </div>
+            <div class="bg-white rounded-xl border border-gray-200 p-5 text-center">
+                <div class="inline-flex items-center justify-center w-10 h-10 bg-amber-50 rounded-full mb-2">
+                    <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <div class="text-3xl font-extrabold text-amber-700 font-mono">{{ $stats['attLate'] }}</div>
+                <div class="text-[10px] font-bold text-amber-600 uppercase tracking-wider mt-0.5">Hadir Terlambat</div>
+            </div>
+            <div class="bg-white rounded-xl border border-gray-200 p-5 text-center">
+                <div class="inline-flex items-center justify-center w-10 h-10 bg-red-50 rounded-full mb-2">
+                    <svg class="w-5 h-5 text-red-650" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </div>
+                <div class="text-3xl font-extrabold text-red-700 font-mono">{{ $stats['attAbsent'] }}</div>
+                <div class="text-[10px] font-bold text-red-600 uppercase tracking-wider mt-0.5">Belum Absen Hari Ini</div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {{-- Department headcounts and salary --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 font-display mb-4">Biaya & Headcount per Departemen</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead>
+                            <tr class="text-left font-semibold text-gray-500">
+                                <th class="py-3 px-4">Departemen</th>
+                                <th class="py-3 px-4 text-center">Jumlah Staff</th>
+                                <th class="py-3 px-4 text-right">Total Gaji Pokok</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @forelse($stats['deptHeadcount'] as $dept)
+                                <tr>
+                                    <td class="py-3 px-4 font-semibold text-gray-900">{{ $dept->department ?: 'Umum (General)' }}</td>
+                                    <td class="py-3 px-4 text-center font-mono font-bold">{{ $dept->count }} staff</td>
+                                    <td class="py-3 px-4 text-right font-mono font-bold text-gray-900">Rp {{ number_format($dept->total_salary, 0, ',', '.') }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="3" class="py-6 text-center text-gray-400">Belum ada departemen/karyawan.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {{-- Pending Leaves List --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 font-display mb-4 flex items-center justify-between">
+                    <span>Pengajuan Cuti Pending</span>
+                    <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">{{ $stats['pendingLeaves'] }} pending</span>
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead>
+                            <tr class="text-left font-semibold text-gray-500">
+                                <th class="py-3 px-4">Karyawan</th>
+                                <th class="py-3 px-4">Periode Cuti</th>
+                                <th class="py-3 px-4">Alasan</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @forelse($stats['pendingLeavesList'] as $leave)
+                                <tr>
+                                    <td class="py-3 px-4">
+                                        <div class="font-semibold text-gray-900">{{ $leave->employee->name }}</div>
+                                        <div class="text-[10px] text-gray-550 font-mono">{{ $leave->employee->employee_number }}</div>
+                                    </td>
+                                    <td class="py-3 px-4 text-gray-700 font-sans">
+                                        <div class="font-semibold">{{ $leave->start_date }} — {{ $leave->end_date }}</div>
+                                        <div class="text-[10px] text-gray-500 uppercase tracking-wider font-bold">{{ $leave->type }}</div>
+                                    </td>
+                                    <td class="py-3 px-4 text-gray-650 max-w-[120px] truncate" title="{{ $leave->reason }}">{{ $leave->reason }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="3" class="py-6 text-center text-gray-400">Tidak ada pengajuan cuti pending.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 font-sans">
+            {{-- Recent Job Applicants --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 font-display mb-4">Pelamar ATS Terbaru</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead>
+                            <tr class="text-left font-semibold text-gray-500">
+                                <th class="py-3 px-4">Pelamar</th>
+                                <th class="py-3 px-4">Posisi</th>
+                                <th class="py-3 px-4 text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @forelse($stats['recentApplicants'] as $appl)
+                                <tr>
+                                    <td class="py-3 px-4">
+                                        <div class="font-semibold text-gray-900">{{ $appl->name }}</div>
+                                        <div class="text-[10px] text-gray-500 font-mono">{{ $appl->email }}</div>
+                                    </td>
+                                    <td class="py-3 px-4 text-gray-600">{{ $appl->jobPosition->title ?? 'Umum' }}</td>
+                                    <td class="py-3 px-4 text-center font-sans">
+                                        @php
+                                            $appBadge = match($appl->status) {
+                                                'applied' => 'bg-blue-100 text-blue-800',
+                                                'screening' => 'bg-indigo-100 text-indigo-800',
+                                                'interview' => 'bg-amber-100 text-amber-800',
+                                                'offered' => 'bg-purple-100 text-purple-800',
+                                                'hired' => 'bg-emerald-100 text-emerald-800',
+                                                'rejected' => 'bg-red-100 text-red-800',
+                                                default => 'bg-gray-100 text-gray-800'
+                                            };
+                                        @endphp
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase {{ $appBadge }}">
+                                            {{ $appl->status }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="3" class="py-6 text-center text-gray-400">Belum ada pelamar baru.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {{-- ATS Funnel metrics --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 font-display mb-4">Corong Perekrutan ATS</h3>
+                <div class="space-y-3 font-sans text-sm">
+                    @php
+                        $recStatuses = ['applied' => 'Applied', 'screening' => 'Screening', 'interview' => 'Interview', 'offered' => 'Offered', 'hired' => 'Hired', 'rejected' => 'Rejected'];
+                        $maxRec = max(array_map(fn($item) => $item['count'] ?? 0, $stats['applicantsByStatus']->toArray())) ?: 1;
+                    @endphp
+                    @foreach($recStatuses as $key => $label)
+                        @php
+                            $recStat = $stats['applicantsByStatus'][$key] ?? null;
+                            $count = $recStat ? $recStat->count : 0;
+                            $pct = ($count / $maxRec) * 100;
+                            $bgClass = match($key) {
+                                'applied' => 'bg-blue-500',
+                                'screening' => 'bg-indigo-500',
+                                'interview' => 'bg-amber-500',
+                                'offered' => 'bg-purple-500',
+                                'hired' => 'bg-emerald-500',
+                                'rejected' => 'bg-rose-500',
+                                default => 'bg-gray-500'
+                            };
+                        @endphp
+                        <div>
+                            <div class="flex justify-between text-xs font-semibold text-gray-650 mb-1">
+                                <span>{{ $label }}</span>
+                                <span class="font-mono text-gray-900">{{ $count }} kandidat</span>
+                            </div>
+                            <div class="w-full bg-gray-100 rounded-full h-2">
+                                <div class="{{ $bgClass }} h-2 rounded-full" style="width: {{ $pct }}%"></div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+
+    @elseif ($activeTab === 'employees')
         <!-- Search Employee -->
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div class="flex-1 max-w-md relative">

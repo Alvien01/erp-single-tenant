@@ -18,8 +18,8 @@ class InventoryManager extends Component
     public $search = '';
     public $warehouse_id = '';
     
-    // Tab switching (stock, adjustments)
-    public $activeTab = 'stock';
+    // Tab switching (dashboard, stock, adjustments)
+    public $activeTab = 'dashboard';
 
     // Adjustment Form fields
     public $adj_warehouse_id;
@@ -161,6 +161,36 @@ class InventoryManager extends Component
             'warehouses' => Warehouse::all(),
             'adjustments' => $adjustments,
             'products' => Product::all(),
+            'stats' => $this->getDashboardStats(),
         ]);
+    }
+
+    public function getDashboardStats()
+    {
+        // Low stock items
+        $lowStock = StockItem::with(['product', 'warehouse'])
+            ->where('qty_on_hand', '<', 15)
+            ->orderBy('qty_on_hand', 'asc')
+            ->take(5)
+            ->get();
+
+        // Total valuation by warehouse
+        $valuationByWarehouse = StockItem::select('warehouse_id', \DB::raw('sum(qty_on_hand) as total_qty'))
+            ->with('warehouse')
+            ->groupBy('warehouse_id')
+            ->get();
+
+        return [
+            'totalStockQty' => StockItem::sum('qty_on_hand') ?? 0,
+            'totalValuation' => \App\Models\StockValuation::sum('total_value') ?? 0,
+            'pendingReceipts' => \App\Models\GoodReceipt::where('status', 'draft')->count(),
+            'pendingTransfers' => \App\Models\WarehouseTransfer::whereIn('status', ['draft', 'ready'])->count(),
+            'lowStock' => $lowStock,
+            'valuationByWarehouse' => $valuationByWarehouse,
+            'recentAdjustments' => StockAdjustment::with(['warehouse', 'adjustedBy'])
+                ->orderBy('created_at', 'desc')
+                ->take(5)
+                ->get(),
+        ];
     }
 }

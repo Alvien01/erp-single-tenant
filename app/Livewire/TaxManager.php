@@ -10,6 +10,7 @@ use App\Models\WithholdingTax;
 use App\Models\ActivityLog;
 use App\Models\Account;
 use App\Models\Journal;
+use App\Models\TaxFiling;
 use Illuminate\Support\Facades\Auth;
 
 class TaxManager extends Component
@@ -17,9 +18,9 @@ class TaxManager extends Component
     use WithPagination;
 
     public $search = '';
-    public $activeTab = 'rates'; // rates, invoices, withholding
+    public $activeTab = 'rates'; // rates, invoices, withholding, filings
     public $isOpen = false;
-    public $modalType = ''; // 'tax', 'invoice', 'withholding'
+    public $modalType = ''; // 'tax', 'invoice', 'withholding', 'filing'
 
     // Tax form fields
     public $tax_id;
@@ -45,9 +46,22 @@ class TaxManager extends Component
     public $wht_reference_id;
     public $wht_status = 'unpaid';
 
+    // Filing form fields
+    public $filing_id;
+    public $filing_tax_type = 'ppn'; // ppn, pph21, pph23, pph25, pph29
+    public $filing_period;
+    public $filing_amount = 0;
+    public $filing_date;
+    public $filing_ntpn;
+    public $filing_status = 'draft'; // draft, filed
+    public $filing_notes;
+    public $suggested_amount = null;
+
     public function mount()
     {
         $this->invoice_date = now()->format('Y-m-d');
+        $this->filing_date = now()->format('Y-m-d');
+        $this->filing_period = now()->format('Y-m');
     }
 
     public function openModal($type)
@@ -63,6 +77,7 @@ class TaxManager extends Component
         $this->resetTaxFields();
         $this->resetInvoiceFields();
         $this->resetWithholdingFields();
+        $this->resetFilingFields();
     }
 
     public function resetTaxFields()
@@ -336,6 +351,136 @@ class TaxManager extends Component
         $this->closeModal();
     }
 
+    public function resetFilingFields()
+    {
+        $this->filing_id = null;
+        $this->filing_tax_type = 'ppn';
+        $this->filing_period = now()->format('Y-m');
+        $this->filing_amount = 0;
+        $this->filing_date = now()->format('Y-m-d');
+        $this->filing_ntpn = '';
+        $this->filing_status = 'draft';
+        $this->filing_notes = '';
+        $this->suggested_amount = null;
+    }
+
+    // Tax Filings Management
+    public function createFiling()
+    {
+        $this->resetFilingFields();
+        $this->calculateSuggestedFilingAmount();
+        $this->openModal('filing');
+    }
+
+    public function editFiling($id)
+    {
+        $filing = TaxFiling::findOrFail($id);
+        $this->filing_id = $filing->id;
+        $this->filing_tax_type = $filing->tax_type;
+        $this->filing_period = $filing->period;
+        $this->filing_amount = $filing->amount;
+        $this->filing_date = $filing->filing_date ? $filing->filing_date->format('Y-m-d') : now()->format('Y-m-d');
+        $this->filing_ntpn = $filing->ntpn;
+        $this->filing_status = $filing->status;
+        $this->filing_notes = $filing->notes;
+
+        $this->calculateSuggestedFilingAmount();
+        $this->openModal('filing');
+    }
+
+    public function updatedFilingPeriod()
+    {
+        $this->calculateSuggestedFilingAmount();
+    }
+
+    public function updatedFilingTaxType()
+    {
+        $this->calculateSuggestedFilingAmount();
+    }
+
+    public function calculateSuggestedFilingAmount()
+    {
+        if (empty($this->filing_period)) {
+            $this->suggested_amount = null;
+            return;
+        }
+
+        if ($this->filing_tax_type === 'ppn') {
+            $yearMonth = $this->filing_period;
+            $startDate = $yearMonth . '-01';
+            $endDate = date('Y-m-t', strtotime($startDate));
+
+            $ppnMasukan = TaxInvoice::where('type', 'masukan')
+                ->where('status', 'approved')
+                ->whereBetween('date', [$startDate, $endDate])
+                ->sum('ppn');
+
+            $ppnKeluaran = TaxInvoice::where('type', 'keluaran')
+                ->where('status', 'approved')
+                ->whereBetween('date', [$startDate, $endDate])
+                ->sum('ppn');
+
+            $this->suggested_amount = max(0, $ppnKeluaran - $ppnMasukan);
+        } else {
+            $yearMonth = $this->filing_period;
+            $startDate = $yearMonth . '-01 00:00:00';
+            $endDate = date('Y-m-t', strtotime($startDate)) . ' 23:59:59';
+
+            $this->suggested_amount = WithholdingTax::where('type', $this->filing_tax_type)
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->sum('amount');
+        }
+    }
+
+    public function applySuggestedAmount()
+    {
+        if ($this->suggested_amount !== null) {
+            $this->filing_amount = $this->suggested_amount;
+        }
+    }
+
+    public function saveFiling()
+    {
+        $this->validate([
+            'filing_tax_type' => 'required|string|in:ppn,pph21,pph23,pph25,pph29',
+            'filing_period' => 'required|regex:/^\d{4}-\d{2}$/',
+            'filing_amount' => 'required|numeric|min:0',
+            'filing_date' => 'required|date',
+            'filing_ntpn' => 'nullable|string|max:255',
+            'filing_status' => 'required|in:draft,filed',
+            'filing_notes' => 'nullable|string',
+        ]);
+
+        TaxFiling::updateOrCreate(
+            ['id' => $this->filing_id],
+            [
+                'tax_type' => $this->filing_tax_type,
+                'period' => $this->filing_period,
+                'amount' => $this->filing_amount,
+                'filing_date' => $this->filing_date,
+                'ntpn' => $this->filing_ntpn,
+                'status' => $this->filing_status,
+                'notes' => $this->filing_notes,
+            ]
+        );
+
+        ActivityLog::create([
+            'user_id' => Auth::id() ?? 1,
+            'module' => 'Tax Management',
+            'action' => $this->filing_id ? 'Update Tax Filing' : 'Create Tax Filing',
+            'description' => 'Saved tax filing for ' . strtoupper($this->filing_tax_type) . ' Period ' . $this->filing_period . ' amount Rp ' . number_format($this->filing_amount, 2)
+        ]);
+
+        session()->flash('success', 'Tax filing saved successfully.');
+        $this->closeModal();
+    }
+
+    public function deleteFiling($id)
+    {
+        TaxFiling::findOrFail($id)->delete();
+        session()->flash('success', 'Tax filing deleted successfully.');
+    }
+
     public function render()
     {
         $s = '%' . $this->search . '%';
@@ -355,6 +500,12 @@ class TaxManager extends Component
             ->orderBy('id', 'desc')
             ->paginate(10, ['*'], 'whtPage');
 
+        // Query Tax Filings
+        $filings = TaxFiling::where('tax_type', 'like', $s)
+            ->orWhere('period', 'like', $s)
+            ->orderBy('period', 'desc')
+            ->paginate(10, ['*'], 'filingPage');
+
         // Compute PPN Summary
         $ppnMasukanApproved = TaxInvoice::where('type', 'masukan')->where('status', 'approved')->sum('ppn');
         $ppnKeluaranApproved = TaxInvoice::where('type', 'keluaran')->where('status', 'approved')->sum('ppn');
@@ -364,6 +515,7 @@ class TaxManager extends Component
             'taxes' => $taxes,
             'invoices' => $invoices,
             'withholding' => $withholding,
+            'filings' => $filings,
             'ppnMasukanApproved' => $ppnMasukanApproved,
             'ppnKeluaranApproved' => $ppnKeluaranApproved,
             'netPpnPayable' => $netPpnPayable,

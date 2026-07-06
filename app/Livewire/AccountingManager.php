@@ -10,6 +10,16 @@ use App\Models\Asset;
 use App\Models\AssetDepreciation;
 use App\Models\ActivityLog;
 use App\Models\PeriodClosing;
+use App\Models\BankAccount;
+use App\Models\CashTransaction;
+use App\Models\CashTransfer;
+use App\Models\PaymentReceipt;
+use App\Models\PaymentDisbursement;
+use App\Models\PaymentSchedule;
+use App\Models\TaxInvoice;
+use App\Models\Budget;
+use App\Models\BudgetLine;
+use App\Models\Approval;
 use Illuminate\Support\Facades\DB;
 
 class AccountingManager extends Component
@@ -17,7 +27,7 @@ class AccountingManager extends Component
     use WithPagination;
 
     public $search = '';
-    public $activeTab = 'coa'; // coa, journals, ledger_detail, closing, assets
+    public $activeTab = 'dashboard'; // dashboard, coa, journals, ledger_detail, closing, assets
     
     // Journal Entry fields
     public $journal_date;
@@ -453,6 +463,97 @@ class AccountingManager extends Component
         }
     }
 
+    public function getDashboardStats()
+    {
+        $accounts = Account::all();
+        $totalAssets = $accounts->where('type', 'asset')->sum('balance');
+        $totalLiabilities = $accounts->where('type', 'liability')->sum('balance');
+        $totalEquity = $accounts->where('type', 'equity')->sum('balance');
+        $totalIncome = $accounts->where('type', 'income')->sum('balance');
+        $totalExpenses = $accounts->where('type', 'expense')->sum('balance');
+        $netProfit = $totalIncome - $totalExpenses;
+
+        $cashBankBalance = $accounts->where('type', 'asset')->filter(function($acc) {
+            $nameLower = strtolower($acc->name);
+            return str_contains($nameLower, 'kas') || str_contains($nameLower, 'bank') || str_contains($nameLower, 'cash');
+        })->sum('balance');
+
+        $receivablesBalance = $accounts->where('type', 'asset')->filter(function($acc) {
+            $nameLower = strtolower($acc->name);
+            return str_contains($nameLower, 'piutang') || str_contains($nameLower, 'receivable') || str_contains($nameLower, 'ar');
+        })->sum('balance');
+
+        $payablesBalance = $accounts->where('type', 'liability')->filter(function($acc) {
+            $nameLower = strtolower($acc->name);
+            return str_contains($nameLower, 'hutang') || str_contains($nameLower, 'payable') || str_contains($nameLower, 'ap');
+        })->sum('balance');
+
+        // Sub-module stats
+        $cashTransactionsCount = \App\Models\CashTransaction::count();
+        $cashTransactionsTotal = \App\Models\CashTransaction::sum('amount');
+        $cashTransfersCount = \App\Models\CashTransfer::count();
+        $bankAccountsCount = \App\Models\BankAccount::count();
+
+        $receiptsCount = \App\Models\PaymentReceipt::count();
+        $receiptsTotal = \App\Models\PaymentReceipt::sum('amount');
+
+        $disbursementsCount = \App\Models\PaymentDisbursement::count();
+        $disbursementsTotal = \App\Models\PaymentDisbursement::sum('amount');
+        $pendingSchedulesCount = \App\Models\PaymentSchedule::where('status', 'pending')->count();
+        $pendingSchedulesTotal = \App\Models\PaymentSchedule::where('status', 'pending')->sum('planned_amount');
+
+        $taxInvoicesCount = \App\Models\TaxInvoice::count();
+        $taxPPNMasukan = \App\Models\TaxInvoice::where('type', 'masukan')->sum('ppn');
+        $taxPPNKeluaran = \App\Models\TaxInvoice::where('type', 'keluaran')->sum('ppn');
+
+        $budgetsCount = \App\Models\Budget::count();
+        $totalPlannedBudget = \App\Models\BudgetLine::sum('planned_amount');
+
+        $pendingApprovalsCount = \App\Models\Approval::where('status', 'pending')->count();
+
+        $assetsCount = \App\Models\Asset::count();
+        $totalAssetCost = \App\Models\Asset::sum('purchase_price');
+        $totalDepreciation = \App\Models\AssetDepreciation::sum('amount');
+
+        $recentTransactions = Journal::with('account')
+            ->orderBy('transaction_date', 'desc')
+            ->orderBy('id', 'desc')
+            ->take(6)
+            ->get();
+
+        return [
+            'totalAssets' => $totalAssets,
+            'totalLiabilities' => $totalLiabilities,
+            'totalEquity' => $totalEquity,
+            'totalIncome' => $totalIncome,
+            'totalExpenses' => $totalExpenses,
+            'netProfit' => $netProfit,
+            'cashBankBalance' => $cashBankBalance,
+            'receivablesBalance' => $receivablesBalance,
+            'payablesBalance' => $payablesBalance,
+            'cashTransactionsCount' => $cashTransactionsCount,
+            'cashTransactionsTotal' => $cashTransactionsTotal,
+            'cashTransfersCount' => $cashTransfersCount,
+            'bankAccountsCount' => $bankAccountsCount,
+            'receiptsCount' => $receiptsCount,
+            'receiptsTotal' => $receiptsTotal,
+            'disbursementsCount' => $disbursementsCount,
+            'disbursementsTotal' => $disbursementsTotal,
+            'pendingSchedulesCount' => $pendingSchedulesCount,
+            'pendingSchedulesTotal' => $pendingSchedulesTotal,
+            'taxInvoicesCount' => $taxInvoicesCount,
+            'taxPPNMasukan' => $taxPPNMasukan,
+            'taxPPNKeluaran' => $taxPPNKeluaran,
+            'budgetsCount' => $budgetsCount,
+            'totalPlannedBudget' => $totalPlannedBudget,
+            'pendingApprovalsCount' => $pendingApprovalsCount,
+            'assetsCount' => $assetsCount,
+            'totalAssetCost' => $totalAssetCost,
+            'totalDepreciation' => $totalDepreciation,
+            'recentTransactions' => $recentTransactions,
+        ];
+    }
+
     public function render()
     {
         $coaQuery = Account::query()->orderBy('code');
@@ -532,6 +633,7 @@ class AccountingManager extends Component
             'openingBalance' => $openingBalance,
             'closingBalance' => $closingBalance,
             'closings' => $closings,
+            'stats' => $this->getDashboardStats(),
         ])->layout('layouts.app');
     }
 }

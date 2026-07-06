@@ -23,6 +23,7 @@ class Dashboard extends Component
     public string $customStart  = '';
     public string $customEnd    = '';
     public bool   $showDatePicker = false;
+    public string $activeTab = 'overview';
 
     // Attendance properties
     public $currentEmployeeId = null;
@@ -30,7 +31,14 @@ class Dashboard extends Component
     public $isAdmin = false;
     public $att_filter_date;
 
-    protected $queryString = ['datePreset', 'customStart', 'customEnd'];
+    protected $queryString = ['datePreset', 'customStart', 'customEnd', 'activeTab'];
+
+    public function setTab(string $tab): void
+    {
+        if (in_array($tab, ['overview', 'master_data', 'sales_workflow', 'manufacturing', 'warehouse_stock', 'hr_recruitment'])) {
+            $this->activeTab = $tab;
+        }
+    }
 
     public function mount(): void
     {
@@ -466,7 +474,141 @@ class Dashboard extends Component
             ->take(10)
             ->get();
 
+        // Dynamic sub-dashboard data
+        $subDashboardData = [];
+        $startDateStr = $start->toDateString();
+        $endDateStr = $end->toDateString();
+
+        if ($this->activeTab === 'master_data') {
+            $subDashboardData = [
+                'totalProducts' => \App\Models\Product::count(),
+                'totalCategories' => \App\Models\ProductCategory::count(),
+                'totalCustomers' => \App\Models\Customer::count(),
+                'totalSuppliers' => \App\Models\Supplier::count(),
+                'totalWarehouses' => \App\Models\Warehouse::count(),
+                'topProducts' => \App\Models\Product::with('category')->orderBy('price', 'desc')->take(5)->get(),
+                'categoryDist' => \App\Models\ProductCategory::withCount('products')->orderBy('products_count', 'desc')->take(6)->get(),
+            ];
+        } elseif ($this->activeTab === 'sales_workflow') {
+            // CRM lead distribution
+            $leadsByStatus = \App\Models\Lead::select('status', \DB::raw('count(*) as count'), \DB::raw('sum(expected_revenue) as total_rev'))
+                ->groupBy('status')
+                ->get()
+                ->keyBy('status');
+
+            // Sales Orders by status
+            $ordersByStatus = \App\Models\SalesOrder::select('status', \DB::raw('count(*) as count'))
+                ->groupBy('status')
+                ->get()
+                ->keyBy('status');
+
+            // Top selling products by sale volume
+            $topSelling = \App\Models\SaleItem::select('product_id', \DB::raw('sum(quantity) as qty'), \DB::raw('sum(total_price) as total'))
+                ->with('product')
+                ->groupBy('product_id')
+                ->orderBy('qty', 'desc')
+                ->take(5)
+                ->get();
+
+            $subDashboardData = [
+                'totalQuotations' => \App\Models\SalesQuotation::whereBetween('quotation_date', [$startDateStr, $endDateStr])->count(),
+                'totalQuotationsValue' => \App\Models\SalesQuotation::whereBetween('quotation_date', [$startDateStr, $endDateStr])->sum('grand_total'),
+                'totalOrders' => \App\Models\SalesOrder::whereBetween('order_date', [$startDateStr, $endDateStr])->count(),
+                'totalOrdersValue' => \App\Models\SalesOrder::whereBetween('order_date', [$startDateStr, $endDateStr])->sum('grand_total'),
+                'leadsByStatus' => $leadsByStatus,
+                'ordersByStatus' => $ordersByStatus,
+                'topSelling' => $topSelling,
+                'totalLeads' => \App\Models\Lead::count(),
+                'totalExpectedRevenue' => \App\Models\Lead::sum('expected_revenue'),
+            ];
+        } elseif ($this->activeTab === 'manufacturing') {
+            $prodOrdersByStatus = \App\Models\ProductionOrder::select('status', \DB::raw('count(*) as count'))
+                ->groupBy('status')
+                ->get()
+                ->keyBy('status');
+
+            // Highest BOM Costs
+            $topBoms = \App\Models\Bom::with(['product', 'items.component'])
+                ->take(5)
+                ->get()
+                ->map(function ($bom) {
+                    $totalCost = 0;
+                    foreach ($bom->items as $item) {
+                        $componentPrice = $item->component->price ?? 0;
+                        $totalCost += $item->qty * $componentPrice;
+                    }
+                    $bom->total_cost = $totalCost;
+                    return $bom;
+                })
+                ->sortByDesc('total_cost');
+
+            $subDashboardData = [
+                'totalBoms' => \App\Models\Bom::count(),
+                'totalProdOrders' => \App\Models\ProductionOrder::count(),
+                'prodOrdersByStatus' => $prodOrdersByStatus,
+                'activeSchedules' => \App\Models\ProductionSchedule::where('status', 'scheduled')->count(),
+                'topBoms' => $topBoms,
+                'recentProdOrders' => \App\Models\ProductionOrder::with('product')
+                    ->orderBy('created_at', 'desc')
+                    ->take(5)
+                    ->get(),
+            ];
+        } elseif ($this->activeTab === 'warehouse_stock') {
+            // Low stock items
+            $lowStock = \App\Models\StockItem::with(['product', 'warehouse'])
+                ->where('qty_on_hand', '<', 15)
+                ->orderBy('qty_on_hand', 'asc')
+                ->take(5)
+                ->get();
+
+            // Total valuation by warehouse
+            $valuationByWarehouse = \App\Models\StockItem::select('warehouse_id', \DB::raw('sum(qty_on_hand) as total_qty'))
+                ->with('warehouse')
+                ->groupBy('warehouse_id')
+                ->get();
+
+            $subDashboardData = [
+                'totalStockQty' => \App\Models\StockItem::sum('qty_on_hand') ?? 0,
+                'totalValuation' => \App\Models\StockValuation::sum('total_value') ?? 0,
+                'pendingReceipts' => \App\Models\GoodReceipt::where('status', 'draft')->count(),
+                'pendingTransfers' => \App\Models\WarehouseTransfer::whereIn('status', ['draft', 'ready'])->count(),
+                'lowStock' => $lowStock,
+                'valuationByWarehouse' => $valuationByWarehouse,
+                'deliveryOrdersByStatus' => \App\Models\DeliveryOrder::select('status', \DB::raw('count(*) as count'))
+                    ->groupBy('status')
+                    ->get()
+                    ->keyBy('status'),
+            ];
+        } elseif ($this->activeTab === 'hr_recruitment') {
+            // Department Headcount
+            $deptHeadcount = \App\Models\Employee::select('department', \DB::raw('count(*) as count'), \DB::raw('sum(salary) as total_salary'))
+                ->groupBy('department')
+                ->get();
+
+            // ATS Applicants by Status
+            $applicantsByStatus = \App\Models\Applicant::select('status', \DB::raw('count(*) as count'))
+                ->groupBy('status')
+                ->get()
+                ->keyBy('status');
+
+            $subDashboardData = [
+                'totalEmployees' => \App\Models\Employee::count(),
+                'activeEmployees' => \App\Models\Employee::where('status', 'active')->count(),
+                'totalMonthlyPayroll' => \App\Models\Employee::where('status', 'active')->sum('salary'),
+                'totalApplicants' => \App\Models\Applicant::count(),
+                'activeJobOpenings' => \App\Models\JobPosition::where('status', 'active')->count(),
+                'deptHeadcount' => $deptHeadcount,
+                'applicantsByStatus' => $applicantsByStatus,
+                'recentApplicants' => \App\Models\Applicant::with('jobPosition')
+                    ->orderBy('created_at', 'desc')
+                    ->take(5)
+                    ->get(),
+            ];
+        }
+
         return view('livewire.dashboard', [
+            'activeTab'          => $this->activeTab,
+            'subDashboardData'   => $subDashboardData,
             'userRole'           => $role,
             'totalSales'         => $totalSales,
             'totalPurchases'     => $totalPurchases,

@@ -19,7 +19,7 @@ class HRManager extends Component
     use WithPagination;
 
     public $search = '';
-    public $activeTab = 'employees';
+    public $activeTab = 'dashboard';
 
     // Payroll generation parameters
     public $payroll_month;
@@ -859,7 +859,60 @@ class HRManager extends Component
             'attendanceSetting' => $attendanceSetting,
             'currentEmployee' => $this->currentEmployee,
             'isAdmin' => $this->isAdmin, // Kirim ke view
+            'stats' => $this->getDashboardStats(),
         ]);
+    }
+
+    public function getDashboardStats()
+    {
+        $today = now()->format('Y-m-d');
+        $todayAttendances = Attendance::where('date', $today)->get();
+        $attPresent = $todayAttendances->where('status', 'present')->count();
+        $attLate    = $todayAttendances->where('status', 'late')->count();
+        
+        $totalEmployees = Employee::count();
+        $activeEmployees = Employee::where('status', 'active')->count();
+        $attAbsent  = max(0, $activeEmployees - $todayAttendances->count());
+
+        $deptHeadcount = Employee::select('department', \DB::raw('count(*) as count'), \DB::raw('sum(salary) as total_salary'))
+            ->groupBy('department')
+            ->get();
+
+        $applicantsByStatus = \App\Models\Applicant::select('status', \DB::raw('count(*) as count'))
+            ->groupBy('status')
+            ->get()
+            ->keyBy('status');
+
+        return [
+            'totalEmployees' => $totalEmployees,
+            'activeEmployees' => $activeEmployees,
+            'totalMonthlyPayroll' => Employee::where('status', 'active')->sum('salary'),
+            'totalDepartments' => Department::count(),
+            'pendingLeaves' => Leave::where('status', 'pending')->count(),
+            
+            // Attendance
+            'attPresent' => $attPresent,
+            'attLate' => $attLate,
+            'attAbsent' => $attAbsent,
+            'attTotal' => $todayAttendances->count(),
+            
+            // Recruitment
+            'totalApplicants' => \App\Models\Applicant::count(),
+            'activeJobOpenings' => \App\Models\JobPosition::where('status', 'active')->count(),
+            
+            // Lists
+            'deptHeadcount' => $deptHeadcount,
+            'applicantsByStatus' => $applicantsByStatus,
+            'recentApplicants' => \App\Models\Applicant::with('jobPosition')
+                ->orderBy('created_at', 'desc')
+                ->take(5)
+                ->get(),
+            'pendingLeavesList' => Leave::with('employee')
+                ->where('status', 'pending')
+                ->orderBy('created_at', 'desc')
+                ->take(5)
+                ->get(),
+        ];
     }
 
     private function parseWorkTime($time)

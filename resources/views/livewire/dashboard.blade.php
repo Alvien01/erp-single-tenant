@@ -160,6 +160,39 @@
     </div>
 
     {{-- ═══════════════════════════════════════════════
+         TABS NAVIGATION BAR
+    ═══════════════════════════════════════════════ --}}
+    <div class="border-b border-gray-200 mb-6">
+        <nav class="-mb-px flex flex-wrap gap-2 md:gap-6" aria-label="Tabs">
+            @php
+                $tabs = [
+                    'overview' => ['label' => 'Ringkasan', 'icon' => 'M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4zM14 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2v-4z'],
+                    'master_data' => ['label' => 'Master Data', 'icon' => 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01'],
+                    'sales_workflow' => ['label' => 'Sales & Workflow', 'icon' => 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z'],
+                    'manufacturing' => ['label' => 'Manufacturing', 'icon' => 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z'],
+                    'warehouse_stock' => ['label' => 'Warehouse & Stock', 'icon' => 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4'],
+                    'hr_recruitment' => ['label' => 'HR & Recruitment', 'icon' => 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a3 3 0 11-6 0 3 3 0 016 0z'],
+                ];
+            @endphp
+            @foreach($tabs as $tabKey => $tab)
+                <button
+                    wire:click="setTab('{{ $tabKey }}')"
+                    class="group inline-flex items-center py-4 px-1 border-b-2 font-bold text-sm gap-2 transition duration-150 cursor-pointer
+                        {{ $activeTab === $tabKey
+                            ? 'border-blue-600 text-blue-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}"
+                >
+                    <svg class="w-5 h-5 transition duration-150 {{ $activeTab === $tabKey ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $tab['icon'] }}"></path>
+                    </svg>
+                    <span>{{ $tab['label'] }}</span>
+                </button>
+            @endforeach
+        </nav>
+    </div>
+
+    @if($activeTab === 'overview')
+    {{-- ═══════════════════════════════════════════════
          STAT CARDS
     ═══════════════════════════════════════════════ --}}
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -888,5 +921,457 @@
             </div>
         </div>
 
-    </div>
+    @elseif($activeTab === 'master_data')
+        {{-- Master Data Sub-Dashboard --}}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <p class="text-sm font-semibold text-gray-500">Total Produk</p>
+                <p class="mt-2 text-3xl font-extrabold text-gray-900 font-mono">{{ number_format($subDashboardData['totalProducts']) }}</p>
+                <span class="text-xs text-gray-400">Barang terdaftar</span>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <p class="text-sm font-semibold text-gray-500">Total Kategori</p>
+                <p class="mt-2 text-3xl font-extrabold text-gray-900 font-mono">{{ number_format($subDashboardData['totalCategories']) }}</p>
+                <span class="text-xs text-gray-400">Kategori produk</span>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <p class="text-sm font-semibold text-gray-500">Total Pelanggan</p>
+                <p class="mt-2 text-3xl font-extrabold text-gray-900 font-mono">{{ number_format($subDashboardData['totalCustomers']) }}</p>
+                <span class="text-xs text-gray-400">Profil pelanggan aktif</span>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <p class="text-sm font-semibold text-gray-500">Total Supplier</p>
+                <p class="mt-2 text-3xl font-extrabold text-gray-900 font-mono">{{ number_format($subDashboardData['totalSuppliers']) }}</p>
+                <span class="text-xs text-gray-400">Vendor pemasok</span>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <p class="text-sm font-semibold text-gray-500">Total Gudang</p>
+                <p class="mt-2 text-3xl font-extrabold text-gray-900 font-mono">{{ number_format($subDashboardData['totalWarehouses']) }}</p>
+                <span class="text-xs text-gray-400">Pusat logistik</span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {{-- Top Expensive Products Table --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 font-display mb-4">Produk dengan Harga Tertinggi</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead>
+                            <tr class="text-left font-semibold text-gray-500">
+                                <th class="py-3 px-4">Nama Produk</th>
+                                <th class="py-3 px-4">Kategori</th>
+                                <th class="py-3 px-4">Harga Satuan</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @forelse($subDashboardData['topProducts'] as $prod)
+                                <tr>
+                                    <td class="py-3 px-4 font-semibold text-gray-900">{{ $prod->name }}</td>
+                                    <td class="py-3 px-4 text-gray-500">{{ $prod->category->name ?? 'Tanpa Kategori' }}</td>
+                                    <td class="py-3 px-4 font-mono font-bold text-gray-900">Rp {{ number_format($prod->price, 0, ',', '.') }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="3" class="py-6 text-center text-gray-400">Belum ada produk.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {{-- Category Distribution Progress Bars --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 font-display mb-4">Distribusi Produk per Kategori</h3>
+                <div class="space-y-4 font-sans text-sm">
+                    @php
+                        $maxProducts = $subDashboardData['categoryDist']->max('products_count') ?: 1;
+                    @endphp
+                    @forelse($subDashboardData['categoryDist'] as $cat)
+                        @php
+                            $percentage = ($cat->products_count / $maxProducts) * 100;
+                        @endphp
+                        <div>
+                            <div class="flex justify-between text-xs font-semibold text-gray-600 mb-1">
+                                <span>{{ $cat->name }}</span>
+                                <span class="font-mono text-gray-900">{{ $cat->products_count }} produk</span>
+                            </div>
+                            <div class="w-full bg-gray-100 rounded-full h-2">
+                                <div class="bg-blue-650 h-2 rounded-full" style="width: {{ $percentage }}%"></div>
+                            </div>
+                        </div>
+                    @empty
+                        <p class="text-gray-400 text-center py-6">Belum ada kategori.</p>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+
+    @elseif($activeTab === 'sales_workflow')
+        {{-- Sales & Workflow Sub-Dashboard --}}
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <p class="text-sm font-semibold text-gray-500">Sales Quotations (Penawaran)</p>
+                <p class="mt-2 text-3xl font-extrabold text-gray-900 font-mono">{{ $subDashboardData['totalQuotations'] }}</p>
+                <div class="flex justify-between items-center text-xs text-gray-550 mt-2">
+                    <span>Estimasi Nilai:</span>
+                    <span class="font-bold text-blue-600 font-mono">Rp {{ number_format($subDashboardData['totalQuotationsValue'], 0, ',', '.') }}</span>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <p class="text-sm font-semibold text-gray-500">Sales Orders (Pesanan)</p>
+                <p class="mt-2 text-3xl font-extrabold text-gray-900 font-mono">{{ $subDashboardData['totalOrders'] }}</p>
+                <div class="flex justify-between items-center text-xs text-gray-550 mt-2">
+                    <span>Nilai Terkonfirmasi:</span>
+                    <span class="font-bold text-emerald-600 font-mono">Rp {{ number_format($subDashboardData['totalOrdersValue'], 0, ',', '.') }}</span>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <p class="text-sm font-semibold text-gray-500">CRM Leads (Prospek)</p>
+                <p class="mt-2 text-3xl font-extrabold text-gray-900 font-mono">{{ $subDashboardData['totalLeads'] }}</p>
+                <div class="flex justify-between items-center text-xs text-gray-550 mt-2">
+                    <span>Estimasi Pendapatan CRM:</span>
+                    <span class="font-bold text-indigo-600 font-mono">Rp {{ number_format($subDashboardData['totalExpectedRevenue'], 0, ',', '.') }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {{-- CRM Pipeline stages --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 font-display mb-4">CRM Leads Funnel</h3>
+                <div class="space-y-3 font-sans text-sm">
+                    @php
+                        $pipelineStages = ['new' => 'New', 'contacted' => 'Contacted', 'qualified' => 'Qualified', 'won' => 'Won', 'lost' => 'Lost'];
+                        $maxLeadsCount = max(array_map(fn($l) => $l['count'] ?? 0, $subDashboardData['leadsByStatus']->toArray())) ?: 1;
+                    @endphp
+                    @foreach($pipelineStages as $statusKey => $statusLabel)
+                        @php
+                            $leadStat = $subDashboardData['leadsByStatus'][$statusKey] ?? null;
+                            $count = $leadStat ? $leadStat->count : 0;
+                            $revenue = $leadStat ? $leadStat->total_rev : 0;
+                            $pct = ($count / $maxLeadsCount) * 100;
+                            $bgClass = match($statusKey) {
+                                'new' => 'bg-blue-500',
+                                'contacted' => 'bg-indigo-500',
+                                'qualified' => 'bg-purple-500',
+                                'won' => 'bg-emerald-500',
+                                'lost' => 'bg-rose-500',
+                                default => 'bg-gray-500'
+                            };
+                        @endphp
+                        <div>
+                            <div class="flex justify-between text-xs font-semibold text-gray-600 mb-1">
+                                <span>{{ $statusLabel }}</span>
+                                <span class="font-mono text-gray-900">
+                                    {{ $count }} leads (Rp {{ number_format($revenue, 0, ',', '.') }})
+                                </span>
+                            </div>
+                            <div class="w-full bg-gray-100 rounded-full h-2.5">
+                                <div class="{{ $bgClass }} h-2.5 rounded-full" style="width: {{ $pct }}%"></div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+
+            {{-- Top Selling Products --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 font-display mb-4">Produk Paling Laris (Top-Selling)</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead>
+                            <tr class="text-left font-semibold text-gray-500">
+                                <th class="py-3 px-4">Nama Produk</th>
+                                <th class="py-3 px-4 text-center">Jumlah Terjual</th>
+                                <th class="py-3 px-4">Total Revenue</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @forelse($subDashboardData['topSelling'] as $item)
+                                <tr>
+                                    <td class="py-3 px-4 font-semibold text-gray-900">{{ $item->product->name ?? 'Produk Tidak Dikenal' }}</td>
+                                    <td class="py-3 px-4 text-center font-mono font-bold">{{ number_format($item->qty) }} pcs</td>
+                                    <td class="py-3 px-4 font-mono font-bold text-emerald-600">Rp {{ number_format($item->total, 0, ',', '.') }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="3" class="py-6 text-center text-gray-400">Belum ada transaksi penjualan.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    @elseif($activeTab === 'manufacturing')
+        {{-- Manufacturing Sub-Dashboard --}}
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <p class="text-sm font-semibold text-gray-500">Formulasi BOM Aktif</p>
+                <p class="mt-2 text-3xl font-extrabold text-gray-900 font-mono">{{ $subDashboardData['totalBoms'] }}</p>
+                <span class="text-xs text-gray-400">Bill of Materials terdaftar</span>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <p class="text-sm font-semibold text-gray-500">Total Production Orders</p>
+                <p class="mt-2 text-3xl font-extrabold text-gray-900 font-mono">{{ $subDashboardData['totalProdOrders'] }}</p>
+                <span class="text-xs text-gray-400">Perintah manufaktur</span>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <p class="text-sm font-semibold text-gray-500">Jadwal Manufaktur Aktif</p>
+                <p class="mt-2 text-3xl font-extrabold text-gray-900 font-mono text-blue-600">{{ $subDashboardData['activeSchedules'] }}</p>
+                <span class="text-xs text-gray-400">Proses produksi terjadwal</span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {{-- Production Orders Statuses --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 font-display mb-4">Status Perintah Produksi (Work Orders)</h3>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    @php
+                        $mrpStatuses = [
+                            'draft' => ['label' => 'Draft', 'bg' => 'bg-gray-50 border-gray-200 text-gray-800'],
+                            'planned' => ['label' => 'Planned', 'bg' => 'bg-blue-50 border-blue-200 text-blue-850'],
+                            'in_progress' => ['label' => 'In Progress', 'bg' => 'bg-amber-50 border-amber-200 text-amber-850'],
+                            'completed' => ['label' => 'Completed', 'bg' => 'bg-emerald-50 border-emerald-200 text-emerald-850'],
+                            'cancelled' => ['label' => 'Cancelled', 'bg' => 'bg-red-50 border-red-200 text-red-850'],
+                        ];
+                    @endphp
+                    @foreach($mrpStatuses as $key => $style)
+                        @php
+                            $count = $subDashboardData['prodOrdersByStatus'][$key]->count ?? 0;
+                        @endphp
+                        <div class="border rounded-xl p-4 text-center {{ $style['bg'] }}">
+                            <div class="text-3xl font-extrabold font-mono">{{ $count }}</div>
+                            <div class="text-xs font-bold uppercase tracking-wider mt-1">{{ $style['label'] }}</div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+
+            {{-- Top Highest Costs BOMs --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 font-display mb-4">Formulasi BOM Termahal</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead>
+                            <tr class="text-left font-semibold text-gray-500">
+                                <th class="py-3 px-4">Produk Jadi</th>
+                                <th class="py-3 px-4 text-center">Bahan Baku</th>
+                                <th class="py-3 px-4">Estimasi Cost BOM</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @forelse($subDashboardData['topBoms'] as $bom)
+                                <tr>
+                                    <td class="py-3 px-4 font-semibold text-gray-900">{{ $bom->product->name ?? 'Produk Tidak Dikenal' }}</td>
+                                    <td class="py-3 px-4 text-center font-mono font-bold">{{ $bom->items->count() }} komponen</td>
+                                    <td class="py-3 px-4 font-mono font-bold text-red-600">Rp {{ number_format($bom->total_cost, 0, ',', '.') }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="3" class="py-6 text-center text-gray-400">Belum ada formula BOM.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    @elseif($activeTab === 'warehouse_stock')
+        {{-- Warehouse & Stock Sub-Dashboard --}}
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <p class="text-sm font-semibold text-gray-500">Total Stok Fisik</p>
+                <p class="mt-2 text-3xl font-extrabold text-gray-900 font-mono">{{ number_format($subDashboardData['totalStockQty']) }}</p>
+                <span class="text-xs text-gray-400">Pcs kuantitas on-hand</span>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <p class="text-sm font-semibold text-gray-500">Total Nilai Aset Stok</p>
+                <p class="mt-2 text-3xl font-extrabold text-emerald-600 font-mono">Rp {{ number_format($subDashboardData['totalValuation'], 0, ',', '.') }}</p>
+                <span class="text-xs text-gray-400">Evaluasi nilai modal persediaan</span>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <p class="text-sm font-semibold text-gray-500">Good Receipts Pending</p>
+                <p class="mt-2 text-3xl font-extrabold text-amber-600 font-mono">{{ $subDashboardData['pendingReceipts'] }}</p>
+                <span class="text-xs text-gray-400">Draft penerimaan barang baru</span>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <p class="text-sm font-semibold text-gray-500">Stok Transfer Aktif</p>
+                <p class="mt-2 text-3xl font-extrabold text-blue-600 font-mono">{{ $subDashboardData['pendingTransfers'] }}</p>
+                <span class="text-xs text-gray-400">Proses transfer antar gudang</span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {{-- Low stock warnings --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 font-display mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    Peringatan Stok Menipis (< 15 pcs)
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead>
+                            <tr class="text-left font-semibold text-gray-500">
+                                <th class="py-3 px-4">Nama Produk</th>
+                                <th class="py-3 px-4">Gudang</th>
+                                <th class="py-3 px-4 text-center">Stok Sisa</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @forelse($subDashboardData['lowStock'] as $item)
+                                <tr>
+                                    <td class="py-3 px-4 font-semibold text-gray-900">{{ $item->product->name ?? 'Produk Tidak Dikenal' }}</td>
+                                    <td class="py-3 px-4 text-gray-500">{{ $item->warehouse->name ?? 'Gudang Utama' }}</td>
+                                    <td class="py-3 px-4 text-center">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800 font-mono">
+                                            {{ $item->qty_on_hand }} pcs
+                                        </span>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="3" class="py-6 text-center text-gray-400">Semua produk memiliki tingkat stok aman (> 15 pcs).</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {{-- Stock Value by Warehouse --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 font-display mb-4">Jumlah Stok per Gudang</h3>
+                <div class="space-y-4 font-sans text-sm">
+                    @php
+                        $maxStockInWarehouse = $subDashboardData['valuationByWarehouse']->max('total_qty') ?: 1;
+                    @endphp
+                    @forelse($subDashboardData['valuationByWarehouse'] as $wh)
+                        @php
+                            $percentage = ($wh->total_qty / $maxStockInWarehouse) * 100;
+                        @endphp
+                        <div>
+                            <div class="flex justify-between text-xs font-semibold text-gray-600 mb-1">
+                                <span>{{ $wh->warehouse->name ?? 'Gudang Utama' }}</span>
+                                <span class="font-mono text-gray-900">{{ number_format($wh->total_qty) }} pcs</span>
+                            </div>
+                            <div class="w-full bg-gray-100 rounded-full h-2">
+                                <div class="bg-emerald-500 h-2 rounded-full" style="width: {{ $percentage }}%"></div>
+                            </div>
+                        </div>
+                    @empty
+                        <p class="text-gray-400 text-center py-6">Stok belum dicatat di gudang manapun.</p>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+
+    @elseif($activeTab === 'hr_recruitment')
+        {{-- HR & Recruitment Sub-Dashboard --}}
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <p class="text-sm font-semibold text-gray-500">Karyawan Terdaftar</p>
+                <p class="mt-2 text-3xl font-extrabold text-gray-900 font-mono">{{ $subDashboardData['totalEmployees'] }}</p>
+                <span class="text-xs text-gray-400">{{ $subDashboardData['activeEmployees'] }} karyawan aktif</span>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <p class="text-sm font-semibold text-gray-500">Anggaran Gaji Bulanan</p>
+                <p class="mt-2 text-3xl font-extrabold text-indigo-600 font-mono">Rp {{ number_format($subDashboardData['totalMonthlyPayroll'], 0, ',', '.') }}</p>
+                <span class="text-xs text-gray-400">Total payroll bulanan</span>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <p class="text-sm font-semibold text-gray-500">Lowongan Pekerjaan Aktif</p>
+                <p class="mt-2 text-3xl font-extrabold text-blue-600 font-mono">{{ $subDashboardData['activeJobOpenings'] }}</p>
+                <span class="text-xs text-gray-400">Lowongan ATS dibuka</span>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <p class="text-sm font-semibold text-gray-500">Total Kandidat Pelamar</p>
+                <p class="mt-2 text-3xl font-extrabold text-gray-900 font-mono font-mono">{{ $subDashboardData['totalApplicants'] }}</p>
+                <span class="text-xs text-gray-400">Pelamar masuk di ATS</span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {{-- Department Payroll Cost Distribution --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 font-display mb-4">Biaya & Headcount Karyawan per Departemen</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead>
+                            <tr class="text-left font-semibold text-gray-500">
+                                <th class="py-3 px-4">Departemen</th>
+                                <th class="py-3 px-4 text-center">Headcount</th>
+                                <th class="py-3 px-4 text-right">Total Gaji Bulanan</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @forelse($subDashboardData['deptHeadcount'] as $dept)
+                                <tr>
+                                    <td class="py-3 px-4 font-semibold text-gray-900">{{ $dept->department ?: 'Umum (General)' }}</td>
+                                    <td class="py-3 px-4 text-center font-mono font-bold">{{ $dept->count }} karyawan</td>
+                                    <td class="py-3 px-4 text-right font-mono font-bold text-gray-900">Rp {{ number_format($dept->total_salary, 0, ',', '.') }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="3" class="py-6 text-center text-gray-400">Belum ada data departemen/karyawan.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {{-- Recent Applicants ATS --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 font-display mb-4">Kandidat Pelamar Terbaru (ATS)</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead>
+                            <tr class="text-left font-semibold text-gray-500">
+                                <th class="py-3 px-4">Nama Pelamar</th>
+                                <th class="py-3 px-4">Posisi yang Dilamar</th>
+                                <th class="py-3 px-4 text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @forelse($subDashboardData['recentApplicants'] as $appl)
+                                <tr>
+                                    <td class="py-3 px-4">
+                                        <div class="font-semibold text-gray-900">{{ $appl->name }}</div>
+                                        <div class="text-[10px] text-gray-500 font-mono">{{ $appl->email }}</div>
+                                    </td>
+                                    <td class="py-3 px-4 text-gray-600">{{ $appl->jobPosition->title ?? 'Umum' }}</td>
+                                    <td class="py-3 px-4 text-center">
+                                        @php
+                                            $appBadge = match($appl->status) {
+                                                'applied' => 'bg-blue-100 text-blue-800',
+                                                'screening' => 'bg-indigo-100 text-indigo-850',
+                                                'interview' => 'bg-amber-100 text-amber-850',
+                                                'offered' => 'bg-purple-100 text-purple-850',
+                                                'hired' => 'bg-emerald-100 text-emerald-850',
+                                                'rejected' => 'bg-red-100 text-red-850',
+                                                default => 'bg-gray-100 text-gray-800'
+                                            };
+                                        @endphp
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase {{ $appBadge }}">
+                                            {{ $appl->status }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="3" class="py-6 text-center text-gray-400">Belum ada pelamar pekerjaan masuk.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    @endif
 </div>
