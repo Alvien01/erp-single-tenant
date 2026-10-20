@@ -23,6 +23,11 @@ class CategoryManager extends Component
     public $isOpen = false;
     public $isEditMode = false;
 
+    // Delete confirmation modal state
+    public $confirmingCategoryDeletion = false;
+    public $deleteCategoryId = null;
+    public $deleteCategoryName = '';
+
     // Listeners or properties
     protected $rules = [
         'name' => 'required|string|max:255',
@@ -39,6 +44,7 @@ class CategoryManager extends Component
 
     public function openModal()
     {
+        $this->confirmingCategoryDeletion = false;
         $this->isOpen = true;
     }
 
@@ -109,13 +115,37 @@ class CategoryManager extends Component
         $this->openModal();
     }
 
-    public function delete($id)
+    public function confirmDelete($id)
     {
-        $category = ProductCategory::findOrFail($id);
+        $category = ProductCategory::find($id);
+        if ($category) {
+            $this->isOpen = false;
+            $this->deleteCategoryId = $category->id;
+            $this->deleteCategoryName = $category->name;
+            $this->confirmingCategoryDeletion = true;
+        }
+    }
+
+    public function cancelDelete()
+    {
+        $this->confirmingCategoryDeletion = false;
+        $this->deleteCategoryId = null;
+        $this->deleteCategoryName = '';
+    }
+
+    public function delete($id = null)
+    {
+        $targetId = $id ?? $this->deleteCategoryId;
+        if (!$targetId) {
+            return;
+        }
+
+        $category = ProductCategory::findOrFail($targetId);
 
         // Check if there are any products attached to this category
         if ($category->products()->exists()) {
             session()->flash('error', 'Cannot delete category "' . $category->name . '" because it is linked to ' . $category->products()->count() . ' products.');
+            $this->cancelDelete();
             return;
         }
         
@@ -128,6 +158,7 @@ class CategoryManager extends Component
 
         $category->delete();
         session()->flash('success', 'Category deleted successfully.');
+        $this->cancelDelete();
     }
 
     public function render()

@@ -54,8 +54,9 @@ class GoodReceiptManager extends Component
         $this->reference = '';
         $this->purchase_id = '';
         $this->status = 'draft';
+        $defaultWh = Warehouse::first()->id ?? '';
         $this->items = [
-            ['product_id' => '', 'warehouse_id' => '', 'qty_received' => 1, 'unit_price' => 0]
+            ['product_id' => '', 'warehouse_id' => $defaultWh, 'qty_received' => 1, 'unit_price' => 0, 'subtotal' => 0]
         ];
         $this->isEditMode = false;
     }
@@ -78,13 +79,55 @@ class GoodReceiptManager extends Component
 
     public function addItem()
     {
-        $this->items[] = ['product_id' => '', 'warehouse_id' => '', 'qty_received' => 1, 'unit_price' => 0];
+        $defaultWh = Warehouse::first()->id ?? '';
+        $this->items[] = [
+            'product_id' => '',
+            'warehouse_id' => $defaultWh,
+            'qty_received' => 1,
+            'unit_price' => 0,
+            'subtotal' => 0,
+        ];
     }
 
     public function removeItem($index)
     {
         unset($this->items[$index]);
         $this->items = array_values($this->items);
+    }
+
+    public function updatedItems($value, $key)
+    {
+        $parts = explode('.', $key);
+        if (count($parts) === 3) {
+            $index = $parts[1];
+            $field = $parts[2];
+        } elseif (count($parts) === 2) {
+            $index = $parts[0];
+            $field = $parts[1];
+        } else {
+            return;
+        }
+
+        if (!isset($this->items[$index])) {
+            return;
+        }
+
+        // Auto-fill unit price when product is selected
+        if ($field === 'product_id') {
+            if ($value) {
+                $product = Product::find($value);
+                if ($product) {
+                    $this->items[$index]['unit_price'] = (float) $product->price;
+                }
+            } else {
+                $this->items[$index]['unit_price'] = 0;
+            }
+        }
+
+        // Recalculate subtotal for this item row
+        $qty = floatval($this->items[$index]['qty_received'] ?? 0);
+        $price = floatval($this->items[$index]['unit_price'] ?? 0);
+        $this->items[$index]['subtotal'] = $qty * $price;
     }
 
     public function updatedPurchaseId($value)
@@ -95,12 +138,16 @@ class GoodReceiptManager extends Component
                 $this->supplier_id = $po->supplier_id;
                 $this->reference = $po->purchase_number;
                 $this->items = [];
+                $defaultWh = Warehouse::first()->id ?? '';
                 foreach ($po->items as $item) {
+                    $qty = floatval($item->quantity);
+                    $price = floatval($item->unit_price);
                     $this->items[] = [
                         'product_id' => $item->product_id,
-                        'warehouse_id' => Warehouse::first()->id ?? '',
-                        'qty_received' => $item->quantity,
-                        'unit_price' => $item->unit_price,
+                        'warehouse_id' => $defaultWh,
+                        'qty_received' => $qty,
+                        'unit_price' => $price,
+                        'subtotal' => $qty * $price,
                     ];
                 }
             }
@@ -133,13 +180,16 @@ class GoodReceiptManager extends Component
             }
 
             foreach ($this->items as $item) {
-                $subtotal = $item['qty_received'] * $item['unit_price'];
+                $qty = floatval($item['qty_received']);
+                $unitPrice = floatval($item['unit_price']);
+                $subtotal = $qty * $unitPrice;
+
                 GoodReceiptItem::create([
                     'good_receipt_id' => $gr->id,
                     'product_id' => $item['product_id'],
                     'warehouse_id' => $item['warehouse_id'],
-                    'qty_received' => $item['qty_received'],
-                    'unit_price' => $item['unit_price'],
+                    'qty_received' => $qty,
+                    'unit_price' => $unitPrice,
                     'subtotal' => $subtotal,
                 ]);
 
@@ -149,13 +199,13 @@ class GoodReceiptManager extends Component
                         'product_id' => $item['product_id'],
                         'warehouse_id' => $item['warehouse_id'],
                     ]);
-                    $stock->qty_on_hand += $item['qty_received'];
+                    $stock->qty_on_hand += $qty;
                     $stock->save();
 
                     // Log inventory
                     Inventory::create([
                         'product_id' => $item['product_id'],
-                        'quantity' => $item['qty_received'],
+                        'quantity' => $qty,
                         'type' => 'in',
                         'reference_type' => 'good_receipt',
                         'reference_id' => $gr->id,
@@ -195,11 +245,14 @@ class GoodReceiptManager extends Component
         
         $this->items = [];
         foreach ($gr->items as $item) {
+            $qty = floatval($item->qty_received);
+            $unitPrice = floatval($item->unit_price);
             $this->items[] = [
                 'product_id' => $item->product_id,
                 'warehouse_id' => $item->warehouse_id,
-                'qty_received' => $item->qty_received,
-                'unit_price' => $item->unit_price,
+                'qty_received' => $qty,
+                'unit_price' => $unitPrice,
+                'subtotal' => floatval($item->subtotal ?: ($qty * $unitPrice)),
             ];
         }
 

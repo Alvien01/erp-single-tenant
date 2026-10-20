@@ -167,7 +167,7 @@
                         @forelse($stats['recentAdjustments'] as $adj)
                             <tr>
                                 <td class="py-3 px-4 font-mono font-bold text-blue-600">{{ $adj->adj_number }}</td>
-                                <td class="py-3 px-4 text-gray-800">{{ $adj->warehouse->warehouse_name }}</td>
+                                <td class="py-3 px-4 text-gray-800">{{ $adj->warehouse?->warehouse_name ?? '-' }}</td>
                                 <td class="py-3 px-4">
                                     <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold uppercase
                                         {{ $adj->type === 'opname' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800' }}">
@@ -261,7 +261,7 @@
                         @forelse($adjustments as $adj)
                             <tr class="hover:bg-gray-50 transition duration-150">
                                 <td class="py-4 px-6 font-mono font-medium text-blue-600">{{ $adj->adj_number }}</td>
-                                <td class="py-4 px-6 font-medium text-gray-900">{{ $adj->warehouse->warehouse_name }}</td>
+                                <td class="py-4 px-6 font-medium text-gray-900">{{ $adj->warehouse?->warehouse_name ?? '-' }}</td>
                                 <td class="py-4 px-6">
                                     <span class="px-2.5 py-0.5 rounded-full text-xs font-medium {{ $adj->type === 'opname' ? 'bg-amber-100 text-amber-800' : ($adj->type === 'addition' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800') }}">
                                         {{ ucfirst($adj->type) }}

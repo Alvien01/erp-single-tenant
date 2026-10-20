@@ -18,11 +18,9 @@ class InvoiceManager extends Component
     use WithPagination;
 
     public $search = '';
-
-    // Form fields
     public $invoice_id;
     public $invoice_number;
-    public $type = 'credit_note'; // credit_note, debit_note
+    public $type = 'credit_note'; 
     public $customer_id;
     public $supplier_id;
     public $original_invoice_id; // link to another invoice

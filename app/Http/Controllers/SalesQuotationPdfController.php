@@ -72,6 +72,8 @@ class SalesQuotationPdfController extends Controller
 
         $pdf->setPaper('A4', 'portrait');
 
-        return $pdf->stream('Proforma-Invoice-' . $quotation->sq_number . '.pdf');
+        $filename = 'Proforma-Invoice-' . str_replace(['/', '\\'], '-', $quotation->sq_number) . '.pdf';
+
+        return $pdf->stream($filename);
     }
 }

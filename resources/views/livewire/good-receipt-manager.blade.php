@@ -50,7 +50,7 @@
                     @forelse($receipts as $gr)
                         <tr class="hover:bg-gray-50 transition duration-150">
                             <td class="py-4 px-6 font-mono font-semibold text-blue-600">{{ $gr->gr_number }}</td>
-                            <td class="py-4 px-6 text-gray-900 font-medium">{{ $gr->supplier->name }}</td>
+                            <td class="py-4 px-6 text-gray-900 font-medium">{{ $gr->supplier?->name ?? '-' }}</td>
                             <td class="py-4 px-6 text-gray-600 font-mono">{{ $gr->reference ?: '-' }}</td>
                             <td class="py-4 px-6 text-right font-mono text-gray-900">
                                 {{ number_format($gr->items->sum('qty_received'), 2) }}
@@ -98,7 +98,7 @@
 
                 <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
-                <div class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full sm:p-6">
+                <div class="inline-block align-bottom bg-white rounded-xl px-4 pt-5 pb-4 text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full sm:p-6">
                     <div class="absolute top-0 right-0 pt-4 pr-4">
                         <button type="button" wire:click="closeModal" class="bg-white rounded-md text-gray-400 hover:text-gray-500 focus:outline-none">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -106,7 +106,7 @@
                     </div>
 
                     <div>
-                        <h3 class="text-lg leading-6 font-medium text-gray-900 font-display" id="modal-title">
+                        <h3 class="text-lg leading-6 font-semibold text-gray-900 font-display" id="modal-title">
                             {{ $isEditMode ? 'Edit Good Receipt' : 'Receive New Goods' }}
                         </h3>
                         
@@ -117,7 +117,7 @@
                                 <select wire:model.live="purchase_id" class="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 sm:text-sm bg-white">
                                     <option value="">Select PO (Optional)</option>
                                     @foreach($purchaseOrders as $po)
-                                        <option value="{{ $po->id }}">{{ $po->purchase_number }} ({{ $po->supplier->name }})</option>
+                                        <option value="{{ $po->id }}">{{ $po->purchase_number }} ({{ $po->supplier?->name ?? 'N/A' }})</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -155,57 +155,90 @@
                         <!-- GR Items -->
                         <div class="mt-6 border-t border-gray-200 pt-6">
                             <div class="flex items-center justify-between mb-4">
-                                <h4 class="text-md font-medium text-gray-900 font-display">Receipt Items</h4>
-                                <button type="button" wire:click="addItem" class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200">
+                                <div>
+                                    <h4 class="text-md font-semibold text-gray-900 font-display">Receipt Items</h4>
+                                    <p class="text-xs text-gray-500 mt-0.5">Unit Price terisi otomatis dari harga produk dan subtotal menyesuaikan Qty Received.</p>
+                                </div>
+                                <button type="button" wire:click="addItem" class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-semibold rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 cursor-pointer">
                                     + Add Item
                                 </button>
                             </div>
 
-                            <div class="space-y-4">
+                            <div class="space-y-3">
                                 @foreach($items as $index => $item)
-                                    <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                                    <div class="p-3 bg-gray-50 rounded-xl border border-gray-200 grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
                                         <!-- Product Selection -->
-                                        <div class="md:col-span-4">
-                                            <label class="block text-xs text-gray-500">Product</label>
-                                            <select wire:model="items.{{ $index }}.product_id" class="mt-1 block w-full border border-gray-300 rounded-md py-1.5 px-3 text-sm bg-white">
+                                        <div class="md:col-span-3">
+                                            <label class="block text-xs font-semibold text-gray-600 mb-1">Product</label>
+                                            <select wire:model.live="items.{{ $index }}.product_id" class="block w-full border border-gray-300 rounded-md py-1.5 px-2.5 text-sm bg-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
                                                 <option value="">Select Product</option>
                                                 @foreach($products as $p)
-                                                    <option value="{{ $p->id }}">{{ $p->name }}</option>
+                                                    <option value="{{ $p->id }}">{{ $p->code }} - {{ $p->name }}</option>
                                                 @endforeach
                                             </select>
+                                            @error('items.'.$index.'.product_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                         </div>
 
                                         <!-- Warehouse Destination -->
-                                        <div class="md:col-span-3">
-                                            <label class="block text-xs text-gray-500">Destination Warehouse</label>
-                                            <select wire:model="items.{{ $index }}.warehouse_id" class="mt-1 block w-full border border-gray-300 rounded-md py-1.5 px-3 text-sm bg-white">
+                                        <div class="md:col-span-2">
+                                            <label class="block text-xs font-semibold text-gray-600 mb-1">Destination Warehouse</label>
+                                            <select wire:model="items.{{ $index }}.warehouse_id" class="block w-full border border-gray-300 rounded-md py-1.5 px-2.5 text-sm bg-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
                                                 <option value="">Select Warehouse</option>
                                                 @foreach($warehouses as $w)
                                                     <option value="{{ $w->id }}">{{ $w->warehouse_name }}</option>
                                                 @endforeach
                                             </select>
+                                            @error('items.'.$index.'.warehouse_id') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                         </div>
 
                                         <!-- Quantity Received -->
                                         <div class="md:col-span-2">
-                                            <label class="block text-xs text-gray-500">Qty Received</label>
-                                            <input type="number" step="0.01" wire:model="items.{{ $index }}.qty_received" class="mt-1 block w-full border border-gray-300 rounded-md py-1.5 px-3 text-sm">
+                                            <label class="block text-xs font-semibold text-gray-600 mb-1">Qty Received</label>
+                                            <input type="number" step="0.01" wire:model.live.debounce.300ms="items.{{ $index }}.qty_received" class="block w-full border border-gray-300 rounded-md py-1.5 px-2.5 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 font-mono">
+                                            @error('items.'.$index.'.qty_received') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                         </div>
 
                                         <!-- Unit Price -->
                                         <div class="md:col-span-2">
-                                            <label class="block text-xs text-gray-500">Unit Price (Rp)</label>
-                                            <input type="number" step="0.01" wire:model="items.{{ $index }}.unit_price" class="mt-1 block w-full border border-gray-300 rounded-md py-1.5 px-3 text-sm">
+                                            <label class="block text-xs font-semibold text-gray-600 mb-1">Unit Price (Rp)</label>
+                                            <input type="number" step="0.01" wire:model.live.debounce.300ms="items.{{ $index }}.unit_price" class="block w-full border border-gray-300 rounded-md py-1.5 px-2.5 text-sm font-mono focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-right">
+                                            @error('items.'.$index.'.unit_price') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                                        </div>
+
+                                        <!-- Subtotal Display -->
+                                        <div class="md:col-span-2">
+                                            <label class="block text-xs font-semibold text-gray-600 mb-1">Subtotal (Rp)</label>
+                                            <div class="py-1.5 px-2.5 bg-gray-100 rounded-md text-sm font-mono text-right text-gray-800 font-semibold truncate border border-gray-200">
+                                                Rp {{ number_format(floatval($item['subtotal'] ?? (floatval($item['qty_received'] ?? 0) * floatval($item['unit_price'] ?? 0))), 0, ',', '.') }}
+                                            </div>
                                         </div>
 
                                         <!-- Actions -->
-                                        <div class="md:col-span-1 text-center mt-4">
-                                            <button type="button" wire:click="removeItem({{ $index }})" class="text-red-600 hover:text-red-900 text-sm">
-                                                Remove
+                                        <div class="md:col-span-1 text-center pb-1">
+                                            <button type="button" wire:click="removeItem({{ $index }})" class="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition cursor-pointer" title="Remove Item">
+                                                <svg class="w-5 h-5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                                </svg>
                                             </button>
                                         </div>
                                     </div>
                                 @endforeach
+                            </div>
+
+                            <!-- Total Receipt Summary -->
+                            @php
+                                $totalQty = collect($items)->sum(fn($i) => floatval($i['qty_received'] ?? 0));
+                                $totalSubtotal = collect($items)->sum(fn($i) => floatval($i['subtotal'] ?? (floatval($i['qty_received'] ?? 0) * floatval($i['unit_price'] ?? 0))));
+                            @endphp
+                            <div class="mt-4 p-3 bg-blue-50/60 rounded-xl border border-blue-100 flex flex-wrap items-center justify-between gap-3">
+                                <div class="text-xs text-gray-600 font-medium">
+                                    Total Items: <span class="font-bold text-gray-900">{{ count($items) }}</span> | 
+                                    Total Qty: <span class="font-bold text-gray-900">{{ number_format($totalQty, 2) }}</span>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-xs text-gray-500 block">Total Nilai Penerimaan</span>
+                                    <span class="text-lg font-mono font-bold text-blue-700">Rp {{ number_format($totalSubtotal, 0, ',', '.') }}</span>
+                                </div>
                             </div>
                         </div>
                     </div>

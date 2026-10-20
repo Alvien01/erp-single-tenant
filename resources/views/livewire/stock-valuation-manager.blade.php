@@ -125,9 +125,15 @@
     @if($isOpen)
         <div class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
             <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+                <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" wire:click="$set('isOpen', false)"></div>
                 <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
-                <div class="inline-block align-middle bg-white rounded-lg px-4 pt-5 pb-4 text-left shadow-xl transform transition-all sm:my-8 sm:max-w-lg sm:w-full sm:p-6">
+                <div class="inline-block align-middle bg-white rounded-lg px-4 pt-5 pb-4 text-left shadow-xl transform transition-all sm:my-8 sm:max-w-lg sm:w-full sm:p-6 relative">
+                    <div class="absolute top-0 right-0 pt-4 pr-4">
+                        <button type="button" wire:click="$set('isOpen', false)" class="text-gray-400 hover:text-gray-500 focus:outline-none">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    </div>
+
                     <h3 class="text-lg leading-6 font-bold text-gray-900 mb-4">Apply Landed Costs</h3>
                     <form wire:submit.prevent="applyLandedCost" class="space-y-4">
                         <div>
@@ -157,9 +163,13 @@
                             <textarea wire:model="description" rows="3" placeholder="e.g. Customs tax and logistics delivery charges" class="mt-1 block w-full shadow-sm sm:text-sm border border-gray-300 rounded-md"></textarea>
                         </div>
 
-                        <div class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:flow-row-dense">
-                            <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 sm:col-start-2 sm:text-sm">Apply & Distribute</button>
-                            <button type="button" wire:click="$set('isOpen', false)" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-gray-700 hover:bg-gray-50 sm:mt-0 sm:col-start-1 sm:text-sm">Cancel</button>
+                        <div class="mt-6 flex items-center justify-end space-x-3 pt-2">
+                            <button type="button" wire:click="$set('isOpen', false)" class="inline-flex justify-center items-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none cursor-pointer">
+                                Cancel
+                            </button>
+                            <button type="submit" class="inline-flex justify-center items-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none cursor-pointer">
+                                Apply & Distribute
+                            </button>
                         </div>
                     </form>
                 </div>

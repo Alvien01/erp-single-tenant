@@ -19,8 +19,6 @@ class ProductManager extends Component
 
     public $search = '';
     public $category_id = '';
-
-    // Form fields
     public $product_id;
     public $code;
     public $name;
@@ -29,22 +27,36 @@ class ProductManager extends Component
     public $stock;
     public $min_stock;
     public $unit = 'pcs';
+    public $type = 'ready_stock';
     public $image;
     public $existing_images = [];
 
     public $isOpen = false;
     public $isEditMode = false;
+    public $confirmingProductDeletion = false;
+    public $deleteProductId = null;
+    public $deleteProductName = '';
+    public $deleteProductCode = '';
 
-    protected $rules = [
-        'code'                 => 'required|unique:products,code',
-        'name'                 => 'required|string|max:255',
-        'selected_category_id' => 'nullable|exists:product_categories,id',
-        'price'                => 'required|numeric|min:0',
-        'stock'                => 'required|numeric|min:0',
-        'min_stock'            => 'required|numeric|min:0',
-        'unit'                 => 'required|string|max:20',
-        'image'                => 'nullable|image|max:5120',
-    ];
+    protected function rules()
+    {
+        $rules = [
+            'code'                 => 'required|unique:products,code',
+            'name'                 => 'required|string|max:255',
+            'selected_category_id' => 'nullable|exists:product_categories,id',
+            'price'                => 'required|numeric|min:0',
+            'unit'                 => 'required|string|max:20',
+            'type'                 => 'required|in:ready_stock,pre_order',
+            'image'                => 'nullable|image|max:5120',
+        ];
+
+        if ($this->type === 'ready_stock') {
+            $rules['stock']     = 'required|numeric|min:0';
+            $rules['min_stock'] = 'required|numeric|min:0';
+        }
+
+        return $rules;
+    }
 
     public function updatedSearch()
     {
@@ -53,6 +65,7 @@ class ProductManager extends Component
 
     public function openModal()
     {
+        $this->confirmingProductDeletion = false;
         $this->isOpen = true;
     }
 
@@ -72,6 +85,7 @@ class ProductManager extends Component
         $this->stock                = '';
         $this->min_stock            = '';
         $this->unit                 = 'pcs';
+        $this->type                 = 'ready_stock';
         $this->image                = null;
         $this->existing_images      = [];
         $this->isEditMode           = false;
@@ -84,9 +98,18 @@ class ProductManager extends Component
         $this->openModal();
     }
 
+    public function updatedType()
+    {
+        if ($this->type === 'pre_order') {
+            $this->stock     = 0;
+            $this->min_stock = 0;
+        }
+        $this->resetValidation(['stock', 'min_stock']);
+    }
+
     public function store()
     {
-        $rules = $this->rules;
+        $rules = $this->rules();
         if ($this->isEditMode) {
             $rules['code'] = 'required|unique:products,code,' . $this->product_id;
         }
@@ -98,16 +121,15 @@ class ProductManager extends Component
             'name'        => $this->name,
             'category_id' => $this->selected_category_id ?: null,
             'price'       => $this->price,
-            'stock'       => $this->stock,
-            'min_stock'   => $this->min_stock,
+            'stock'       => $this->type === 'ready_stock' ? $this->stock : 0,
+            'min_stock'   => $this->type === 'ready_stock' ? $this->min_stock : 0,
             'unit'        => $this->unit,
+            'type'        => $this->type,
         ];
 
         if ($this->image) {
-            // v4: gunakan ImageManager::usingDriver() dan decodePath()
             $manager  = ImageManager::usingDriver(Driver::class);
             $realPath = $this->image->getRealPath();
-
             $baseName = 'prod_' . Str::random(10) . '_' . time();
             $path     = 'products/' . $baseName;
 
@@ -125,8 +147,6 @@ class ProductManager extends Component
                 $images['lg'],
                 $imgLg->encode(new WebpEncoder(quality: 80))
             );
-
-            // MD — 300px wide
             $imgMd = $manager->decodePath($realPath);
             $imgMd->scaleDown(width: 300);
             $images['md'] = $path . '_md.webp';
@@ -134,8 +154,6 @@ class ProductManager extends Component
                 $images['md'],
                 $imgMd->encode(new WebpEncoder(quality: 75))
             );
-
-            // SM — 150px wide
             $imgSm = $manager->decodePath($realPath);
             $imgSm->scaleDown(width: 150);
             $images['sm'] = $path . '_sm.webp';
@@ -144,7 +162,6 @@ class ProductManager extends Component
                 $imgSm->encode(new WebpEncoder(quality: 70))
             );
 
-            // Hapus gambar lama jika sedang edit
             if ($this->isEditMode && !empty($this->existing_images)) {
                 foreach ($this->existing_images as $oldPath) {
                     Storage::disk('public')->delete($oldPath);
@@ -173,6 +190,7 @@ class ProductManager extends Component
         $this->name                 = $product->name;
         $this->selected_category_id = $product->category_id;
         $this->price                = $product->price;
+        $this->type                 = $product->type ?? 'ready_stock';
         $this->stock                = $product->stock;
         $this->min_stock            = $product->min_stock;
         $this->unit                 = $product->unit;
@@ -183,23 +201,52 @@ class ProductManager extends Component
         $this->openModal();
     }
 
-    public function delete($id)
+    public function confirmDelete($id)
     {
         $product = Product::find($id);
+        if ($product) {
+            $this->isOpen = false;
+            $this->deleteProductId = $product->id;
+            $this->deleteProductName = $product->name;
+            $this->deleteProductCode = $product->code;
+            $this->confirmingProductDeletion = true;
+        }
+    }
 
-        if ($product->image) {
-            foreach ($product->image as $path) {
-                Storage::disk('public')->delete($path);
-            }
+    public function cancelDelete()
+    {
+        $this->confirmingProductDeletion = false;
+        $this->deleteProductId = null;
+        $this->deleteProductName = '';
+        $this->deleteProductCode = '';
+    }
+
+    public function delete($id = null)
+    {
+        $targetId = $id ?? $this->deleteProductId;
+        if (!$targetId) {
+            return;
         }
 
-        $product->delete();
-        session()->flash('success', 'Product deleted successfully.');
+        $product = Product::find($targetId);
+
+        if ($product) {
+            if ($product->image) {
+                foreach ($product->image as $path) {
+                    Storage::disk('public')->delete($path);
+                }
+            }
+
+            $product->delete();
+            session()->flash('success', 'Product deleted successfully.');
+        }
+
+        $this->cancelDelete();
     }
 
     public function render()
     {
-        $query = Product::select('id', 'code', 'name', 'category_id', 'price', 'stock', 'min_stock', 'unit', 'image')
+        $query = Product::select('id', 'code', 'name', 'category_id', 'price', 'stock', 'min_stock', 'unit', 'type', 'image')
             ->with(['category:id,name']);
 
         if ($this->search) {

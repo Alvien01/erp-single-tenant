@@ -10,8 +10,13 @@ use App\Models\AttendanceSetting;
 use App\Models\Payroll;
 use App\Models\Department;
 use App\Models\Leave;
+use App\Models\LeaveType;
+use App\Models\User;
+use App\Models\PayrollComponent;
 use App\Models\ActivityLog;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class HRManager extends Component
@@ -38,7 +43,7 @@ class HRManager extends Component
     public $emp_join_date;
     public $emp_salary = 0;
     public $emp_status = 'active';
-    
+
     // Employee allowance fields
     public $emp_transport_allowance = 30000;
     public $emp_meal_allowance = 25000;
@@ -107,10 +112,10 @@ class HRManager extends Component
         // Sesuaikan dengan implementasi role di sistem Anda
         // Misal: menggunakan kolom 'role' atau 'is_admin'
         $this->isAdmin = isset($user->role) && $user->role === 'admin';
-        
+
         // Atau jika menggunakan Spatie Permission:
         // $this->isAdmin = $user->hasRole('admin');
-        
+
         // Atau jika menggunakan kolom is_admin:
         // $this->isAdmin = $user->is_admin ?? false;
     }
@@ -126,11 +131,11 @@ class HRManager extends Component
         }
 
         // Cari employee berdasarkan user_id
-        $employee = Employee::where('user_id', $user->id)->first();
+        $employee = Employee::where('user_id', '=', $user->id, 'and')->first();
         
         if (!$employee) {
             // Coba cari berdasarkan email
-            $employee = Employee::where('email', $user->email)->first();
+            $employee = Employee::where('email', '=', $user->email, 'and')->first();
         }
 
         if (!$employee) {
@@ -233,7 +238,7 @@ class HRManager extends Component
     public function resetEmployeeFields()
     {
         $this->emp_id = null;
-        $this->employee_number = 'EMP-' . now()->format('Ymd') . '-' . sprintf('%03d', Employee::query()->count() + 1);
+        $this->employee_number = 'EMP-' . now()->format('Ymd') . '-' . sprintf('%03d', Employee::query()->count('*') + 1);
         $this->emp_name = '';
         $this->emp_email = '';
         $this->emp_phone = '';
@@ -307,7 +312,7 @@ class HRManager extends Component
 
     public function deleteEmployee($id)
     {
-        Employee::query()->findOrFail($id)->delete();
+        Employee::destroy($id);
         session()->flash('success', 'Employee deleted successfully.');
     }
 
@@ -357,7 +362,7 @@ class HRManager extends Component
 
             $transportPerDay = $emp->transport_allowance ?? 30000;
             $mealPerDay = $emp->meal_allowance ?? 25000;
-            
+
             $transportAllowance = $attendanceCount * $transportPerDay;
             $mealAllowance = $attendanceCount * $mealPerDay;
             $totalAllowance = $transportAllowance + $mealAllowance;
@@ -397,7 +402,7 @@ class HRManager extends Component
             ];
 
             foreach ($components as $comp) {
-                \App\Models\PayrollComponent::create([
+                PayrollComponent::create([
                     'payroll_id' => $payroll->id,
                     'name' => $comp['name'],
                     'type' => $comp['type'],
@@ -590,8 +595,8 @@ class HRManager extends Component
         $today = now()->format('Y-m-d');
         $currentTime = now()->format('H:i:s');
 
-        $existing = Attendance::where('employee_id', $this->currentEmployeeId)
-            ->where('date', $today)
+        $existing = Attendance::where('employee_id', '=', $this->currentEmployeeId, 'and')
+            ->where('date', '=', $today, 'and')
             ->first();
 
         if ($existing && $existing->check_in) {
@@ -599,7 +604,7 @@ class HRManager extends Component
             return;
         }
 
-        $setting = AttendanceSetting::where('is_active', true)->first();
+        $setting = AttendanceSetting::where('is_active', '=', true, 'and')->first();
 
         $distance = null;
         $status = 'present';
@@ -652,7 +657,7 @@ class HRManager extends Component
                     return;
                 }
             } catch (\Exception $e) {
-                \Log::error('Clock-in time parsing error: ' . $e->getMessage());
+                Log::error('Clock-in time parsing error: ' . $e->getMessage());
             }
         }
 
@@ -695,8 +700,8 @@ class HRManager extends Component
         $today = now()->format('Y-m-d');
         $currentTime = now()->format('H:i:s');
 
-        $attendance = Attendance::where('employee_id', $this->currentEmployeeId)
-            ->where('date', $today)
+        $attendance = Attendance::where('employee_id', '=', $this->currentEmployeeId, 'and')
+            ->where('date', '=', $today, 'and')
             ->first();
 
         if (!$attendance || !$attendance->check_in) {
@@ -709,7 +714,7 @@ class HRManager extends Component
             return;
         }
 
-        $setting = AttendanceSetting::where('is_active', true)->first();
+        $setting = AttendanceSetting::where('is_active', '=', true, 'and')->first();
         $distance = null;
 
         if ($setting && $setting->require_location && $latitude && $longitude) {
@@ -753,7 +758,7 @@ class HRManager extends Component
             return;
         }
 
-        $setting = AttendanceSetting::where('is_active', true)->first();
+        $setting = AttendanceSetting::where('is_active', '=', true, 'and')->first();
 
         if ($setting) {
             $this->setting_id = $setting->id;
@@ -844,10 +849,10 @@ class HRManager extends Component
 
         $payrolls = Payroll::with(['employee', 'components'])->orderBy('period', 'desc')->paginate(10);
 
-        $departments = Department::orderBy('name')->paginate(10);
+        $departments = Department::orderBy('name', 'asc')->paginate(10);
         $leaves = Leave::with('employee')->orderBy('created_at', 'desc')->paginate(10);
 
-        $attendanceSetting = AttendanceSetting::where('is_active', true)->first();
+        $attendanceSetting = AttendanceSetting::where('is_active', '=', true, 'and')->first();
 
         return view('livewire.h-r-manager', [
             'employees' => $empQuery->paginate(10),
@@ -866,19 +871,19 @@ class HRManager extends Component
     public function getDashboardStats()
     {
         $today = now()->format('Y-m-d');
-        $todayAttendances = Attendance::where('date', $today)->get();
+        $todayAttendances = Attendance::where('date', '=', $today, 'and')->get();
         $attPresent = $todayAttendances->where('status', 'present')->count();
         $attLate    = $todayAttendances->where('status', 'late')->count();
-        
-        $totalEmployees = Employee::count();
-        $activeEmployees = Employee::where('status', 'active')->count();
+
+        $totalEmployees = Employee::count('*');
+        $activeEmployees = Employee::where('status', '=', 'active', 'and')->count('*');
         $attAbsent  = max(0, $activeEmployees - $todayAttendances->count());
 
-        $deptHeadcount = Employee::select('department', \DB::raw('count(*) as count'), \DB::raw('sum(salary) as total_salary'))
+        $deptHeadcount = Employee::select(['department', DB::raw('count(*) as count'), DB::raw('sum(salary) as total_salary')])
             ->groupBy('department')
             ->get();
 
-        $applicantsByStatus = \App\Models\Applicant::select('status', \DB::raw('count(*) as count'))
+        $applicantsByStatus = \App\Models\Applicant::select(['status', DB::raw('count(*) as count')])
             ->groupBy('status')
             ->get()
             ->keyBy('status');
@@ -886,20 +891,20 @@ class HRManager extends Component
         return [
             'totalEmployees' => $totalEmployees,
             'activeEmployees' => $activeEmployees,
-            'totalMonthlyPayroll' => Employee::where('status', 'active')->sum('salary'),
-            'totalDepartments' => Department::count(),
-            'pendingLeaves' => Leave::where('status', 'pending')->count(),
-            
+            'totalMonthlyPayroll' => Employee::where('status', '=', 'active', 'and')->sum('salary'),
+            'totalDepartments' => Department::count('*'),
+            'pendingLeaves' => Leave::where('status', '=', 'pending', 'and')->count('*'),
+
             // Attendance
             'attPresent' => $attPresent,
             'attLate' => $attLate,
             'attAbsent' => $attAbsent,
             'attTotal' => $todayAttendances->count(),
-            
+
             // Recruitment
-            'totalApplicants' => \App\Models\Applicant::count(),
-            'activeJobOpenings' => \App\Models\JobPosition::where('status', 'active')->count(),
-            
+            'totalApplicants' => \App\Models\Applicant::count('*'),
+            'activeJobOpenings' => \App\Models\JobPosition::where('status', '=', 'active', 'and')->count('*'),
+
             // Lists
             'deptHeadcount' => $deptHeadcount,
             'applicantsByStatus' => $applicantsByStatus,

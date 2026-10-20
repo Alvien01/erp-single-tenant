@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 class SaleItem extends Model
 {
 
+    protected $guarded = [];
+
     public function sale()
     {
         return $this->belongsTo(Sale::class);
@@ -14,6 +16,10 @@ class SaleItem extends Model
 
     public function product()
     {
-        return $this->belongsTo(Product::class);
+        return $this->belongsTo(Product::class)->withDefault([
+            'name' => $this->product_name ?? '-',
+            'unit' => 'pcs',
+            'sku' => '-',
+        ]);
     }
 }

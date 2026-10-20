@@ -25,8 +25,14 @@ class CustomerManager extends Component
     public $isOpen = false;
     public $isEditMode = false;
 
+    // Delete confirmation modal state
+    public $confirmingCustomerDeletion = false;
+    public $deleteCustomerId = null;
+    public $deleteCustomerName = '';
+
     public function openModal()
     {
+        $this->confirmingCustomerDeletion = false;
         $this->isOpen = true;
     }
 
@@ -100,9 +106,32 @@ class CustomerManager extends Component
         $this->openModal();
     }
 
-    public function delete($id)
+    public function confirmDelete($id)
     {
-        $customer = Customer::findOrFail($id);
+        $customer = Customer::find($id);
+        if ($customer) {
+            $this->isOpen = false;
+            $this->deleteCustomerId = $customer->id;
+            $this->deleteCustomerName = $customer->name;
+            $this->confirmingCustomerDeletion = true;
+        }
+    }
+
+    public function cancelDelete()
+    {
+        $this->confirmingCustomerDeletion = false;
+        $this->deleteCustomerId = null;
+        $this->deleteCustomerName = '';
+    }
+
+    public function delete($id = null)
+    {
+        $targetId = $id ?? $this->deleteCustomerId;
+        if (!$targetId) {
+            return;
+        }
+
+        $customer = Customer::findOrFail($targetId);
         
         ActivityLog::create([
             'user_id' => auth()->id() ?? 1,
@@ -113,6 +142,7 @@ class CustomerManager extends Component
 
         $customer->delete();
         session()->flash('success', 'Customer deleted successfully.');
+        $this->cancelDelete();
     }
 
     public function render()

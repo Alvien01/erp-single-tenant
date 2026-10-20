@@ -26,8 +26,19 @@ class WarehouseManager extends Component
     public $isOpen = false;
     public $isEditMode = false;
 
+    // Delete warehouse confirmation modal state
+    public $confirmingWarehouseDeletion = false;
+    public $deleteWarehouseId = null;
+    public $deleteWarehouseName = '';
+
+    // Delete location confirmation modal state
+    public $confirmingLocationDeletion = false;
+    public $deleteLocationId = null;
+    public $deleteLocationName = '';
+
     public function openModal()
     {
+        $this->confirmingWarehouseDeletion = false;
         $this->isOpen = true;
     }
 
@@ -86,9 +97,32 @@ class WarehouseManager extends Component
         $this->openModal();
     }
 
-    public function delete($id)
+    public function confirmDelete($id)
     {
-        $warehouse = Warehouse::findOrFail($id);
+        $warehouse = Warehouse::find($id);
+        if ($warehouse) {
+            $this->isOpen = false;
+            $this->deleteWarehouseId = $warehouse->id;
+            $this->deleteWarehouseName = $warehouse->warehouse_name;
+            $this->confirmingWarehouseDeletion = true;
+        }
+    }
+
+    public function cancelDelete()
+    {
+        $this->confirmingWarehouseDeletion = false;
+        $this->deleteWarehouseId = null;
+        $this->deleteWarehouseName = '';
+    }
+
+    public function delete($id = null)
+    {
+        $targetId = $id ?? $this->deleteWarehouseId;
+        if (!$targetId) {
+            return;
+        }
+
+        $warehouse = Warehouse::findOrFail($targetId);
         
         ActivityLog::create([
             'user_id' => auth()->id() ?? 1,
@@ -99,6 +133,7 @@ class WarehouseManager extends Component
 
         $warehouse->delete();
         session()->flash('success', 'Warehouse deleted successfully.');
+        $this->cancelDelete();
     }
 
     // Warehouse Location management
@@ -112,6 +147,7 @@ class WarehouseManager extends Component
     public function closeLocations()
     {
         $this->selectedWarehouseForLocations = null;
+        $this->cancelDeleteLocation();
     }
 
     public function addLocation()
@@ -139,9 +175,31 @@ class WarehouseManager extends Component
         session()->flash('success_loc', 'Sub-location added successfully.');
     }
 
-    public function deleteLocation($id)
+    public function confirmDeleteLocation($id)
     {
-        $loc = \App\Models\WarehouseLocation::findOrFail($id);
+        $loc = \App\Models\WarehouseLocation::find($id);
+        if ($loc) {
+            $this->deleteLocationId = $loc->id;
+            $this->deleteLocationName = $loc->location_name . ' (' . $loc->location_code . ')';
+            $this->confirmingLocationDeletion = true;
+        }
+    }
+
+    public function cancelDeleteLocation()
+    {
+        $this->confirmingLocationDeletion = false;
+        $this->deleteLocationId = null;
+        $this->deleteLocationName = '';
+    }
+
+    public function deleteLocation($id = null)
+    {
+        $targetId = $id ?? $this->deleteLocationId;
+        if (!$targetId) {
+            return;
+        }
+
+        $loc = \App\Models\WarehouseLocation::findOrFail($targetId);
         $wId = $loc->warehouse_id;
 
         ActivityLog::create([
@@ -152,6 +210,7 @@ class WarehouseManager extends Component
         ]);
 
         $loc->delete();
+        $this->cancelDeleteLocation();
         $this->manageLocations($wId);
         session()->flash('success_loc', 'Sub-location deleted successfully.');
     }

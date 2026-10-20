@@ -1,8 +1,11 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Livewire\MemberManager;
+use App\Livewire\PromoManager;
 use App\Livewire\ProductManager;
 use App\Livewire\SalesManager;
+use App\Livewire\StoreManager;
 use App\Livewire\PurchaseManager;
 use App\Livewire\InventoryManager;
 use App\Livewire\HRManager;
@@ -19,8 +22,11 @@ use App\Livewire\BOMManager;
 use App\Livewire\ProductionOrderManager;
 use App\Livewire\SettingsManager;
 use App\Livewire\ReportManager;
+use App\Http\Controllers\SalePdfController;
+use App\Http\Controllers\SalesQuotationPdfController;
+use App\Http\Controllers\HomeController;
 
-Route::get('/', [\App\Http\Controllers\HomeController::class, 'index'])->name('home');
+Route::get('/', [HomeController::class, 'index'])->name('home');
 
 Route::view('dashboard', 'dashboard')
     ->middleware(['auth', 'verified'])
@@ -46,8 +52,6 @@ Route::get('warehouses', WarehouseManager::class)
     ->middleware(['auth', 'verified'])
     ->name('warehouses');
 
-use App\Http\Controllers\SalesQuotationPdfController;
-
 Route::get('sales-quotations', SalesQuotationManager::class)
     ->middleware(['auth', 'verified'])
     ->name('sales-quotations');
@@ -64,9 +68,19 @@ Route::get('sales-orders', SalesOrderManager::class)
     ->middleware(['auth', 'verified'])
     ->name('sales-orders');
 
+
+
 Route::get('sales', SalesManager::class)
     ->middleware(['auth', 'verified'])
     ->name('sales');
+
+Route::get('sales/{id}/pdf', [SalePdfController::class, 'download'])
+    ->middleware(['auth', 'verified'])
+    ->name('sales.pdf');
+
+Route::get('sales/{id}/pdf/stream', [SalePdfController::class, 'stream'])
+    ->middleware(['auth', 'verified'])
+    ->name('sales.pdf.stream');
 
 Route::get('purchase-requests', PurchaseRequestManager::class)
     ->middleware(['auth', 'verified'])
@@ -132,15 +146,15 @@ Route::get('pos', \App\Livewire\PosTerminal::class)
     ->middleware(['auth', 'verified'])
     ->name('pos');
 
-Route::get('pos-members', \App\Livewire\MemberManager::class)
+Route::get('pos-members', MemberManager::class)
     ->middleware(['auth', 'verified'])
     ->name('pos-members');
 
-Route::get('pos-promos', \App\Livewire\PromoManager::class)
+Route::get('pos-promos', PromoManager::class)
     ->middleware(['auth', 'verified'])
     ->name('pos-promos');
 
-Route::get('pos-stores', \App\Livewire\StoreManager::class)
+Route::get('pos-stores', StoreManager::class)
     ->middleware(['auth', 'verified'])
     ->name('pos-stores');
 
@@ -308,4 +322,4 @@ Route::post('/midtrans/webhook', [\App\Http\Controllers\MidtransWebhookControlle
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
     ->name('midtrans.webhook');
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';

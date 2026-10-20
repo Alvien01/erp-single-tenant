@@ -283,7 +283,7 @@
                 <div class="space-y-3 font-sans text-sm">
                     @php
                         $recStatuses = ['applied' => 'Applied', 'screening' => 'Screening', 'interview' => 'Interview', 'offered' => 'Offered', 'hired' => 'Hired', 'rejected' => 'Rejected'];
-                        $maxRec = max(array_map(fn($item) => $item['count'] ?? 0, $stats['applicantsByStatus']->toArray())) ?: 1;
+                        $maxRec = max(array_merge([0], array_map(fn($item) => $item['count'] ?? 0, $stats['applicantsByStatus']->toArray()))) ?: 1;
                     @endphp
                     @foreach($recStatuses as $key => $label)
                         @php

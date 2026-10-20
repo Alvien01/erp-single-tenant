@@ -11,6 +11,7 @@ class MenuSetting extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
+        'sort_order' => 'integer',
     ];
 
     /**
@@ -24,6 +25,16 @@ class MenuSetting extends Model
     }
 
     /**
+     * Get all menu labels mapped by route_name (cached for performance).
+     */
+    public static function getMenuLabels(): array
+    {
+        return Cache::remember('menu_labels_map', 60 * 5, function () {
+            return static::pluck('label', 'route_name')->toArray();
+        });
+    }
+
+    /**
      * Check if a specific route is active.
      */
     public static function isRouteActive(string $routeName): bool
@@ -32,10 +43,11 @@ class MenuSetting extends Model
     }
 
     /**
-     * Clear the cached active routes.
+     * Clear the cached active routes and labels.
      */
     public static function clearCache(): void
     {
         Cache::forget('menu_active_routes');
+        Cache::forget('menu_labels_map');
     }
 }

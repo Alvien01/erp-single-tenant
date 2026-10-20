@@ -503,7 +503,8 @@ class Dashboard extends Component
                 ->keyBy('status');
 
             // Top selling products by sale volume
-            $topSelling = \App\Models\SaleItem::select('product_id', \DB::raw('sum(quantity) as qty'), \DB::raw('sum(total_price) as total'))
+            $topSelling = \App\Models\SaleItem::whereNotNull('product_id')
+                ->select('product_id', \DB::raw('sum(quantity) as qty'), \DB::raw('sum(total_price) as total'))
                 ->with('product')
                 ->groupBy('product_id')
                 ->orderBy('qty', 'desc')

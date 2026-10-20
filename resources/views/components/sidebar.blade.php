@@ -1,7 +1,11 @@
 @php
     $activeMenus = \App\Models\MenuSetting::getActiveRoutes();
+    $menuLabels = \App\Models\MenuSetting::getMenuLabels();
     $show = function($routeName) use ($activeMenus) {
         return in_array($routeName, $activeMenus);
+    };
+    $label = function($routeName, $default) use ($menuLabels) {
+        return $menuLabels[$routeName] ?? $default;
     };
     
     // Group visibility checks
@@ -351,6 +355,43 @@
             <svg class="w-5 h-5 mr-3 {{ request()->routeIs('manage-menu') ? 'text-blue-600' : 'text-gray-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
             Manage Menu
         </a>
+        @endif
+
+        {{-- Dynamic Custom Menus (for any active menu setting not hardcoded above) --}}
+        @php
+            $builtInRoutes = [
+                'dashboard', 'products', 'categories', 'customers', 'suppliers', 'warehouses',
+                'crm', 'pos', 'pos-stores', 'pos-members', 'pos-promos', 'pos-reports',
+                'sales-quotations', 'sales-orders', 'sales', 'delivery-orders', 'returns',
+                'invoices', 'subscriptions', 'rentals', 'bom', 'production-orders', 'plm',
+                'advanced-manufacturing', 'good-receipts', 'inventory', 'stock-valuation',
+                'hpp-calculator', 'quality-control', 'barcode-scanner', 'warehouse-transfers',
+                'reordering-rules', 'advanced-logistics', 'hr', 'expenses', 'recruitment',
+                'appraisals', 'schedules', 'accounting', 'cash-bank', 'accounts-receivable',
+                'accounts-payable', 'bank-reconciliation', 'taxes', 'currencies', 'budgets',
+                'approvals', 'advanced-accounting', 'purchase-requests', 'rfqs', 'purchases',
+                'fleet', 'maintenance', 'fsm', 'content-manager', 'config-basic-manager',
+                'website-cms', 'ecommerce', 'marketing', 'marketing-automation', 'discuss',
+                'documents', 'sign', 'projects-manager', 'helpdesk', 'reports', 'multi-company',
+                'settings', 'manage-menu'
+            ];
+            $extraMenus = \App\Models\MenuSetting::where('is_active', true)
+                ->whereNotIn('route_name', $builtInRoutes)
+                ->orderBy('sort_order')
+                ->get();
+        @endphp
+        @if($extraMenus->isNotEmpty())
+            <div class="pt-3 mt-3 border-t border-gray-200">
+                <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Custom Menus</p>
+                @foreach($extraMenus as $extra)
+                    @if(\Illuminate\Support\Facades\Route::has($extra->route_name))
+                        <a href="{{ route($extra->route_name) }}" class="flex items-center px-4 py-2 text-sm font-medium rounded-md mt-1 {{ request()->routeIs($extra->route_name) ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-700 hover:bg-gray-100' }}">
+                            <svg class="w-5 h-5 mr-3 {{ request()->routeIs($extra->route_name) ? 'text-blue-600' : 'text-gray-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            {{ $extra->label }}
+                        </a>
+                    @endif
+                @endforeach
+            </div>
         @endif
     </div>
 </div>

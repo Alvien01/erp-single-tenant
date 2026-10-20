@@ -25,8 +25,14 @@ class SupplierManager extends Component
     public $isOpen = false;
     public $isEditMode = false;
 
+    // Delete confirmation modal state
+    public $confirmingSupplierDeletion = false;
+    public $deleteSupplierId = null;
+    public $deleteSupplierName = '';
+
     public function openModal()
     {
+        $this->confirmingSupplierDeletion = false;
         $this->isOpen = true;
     }
 
@@ -100,9 +106,32 @@ class SupplierManager extends Component
         $this->openModal();
     }
 
-    public function delete($id)
+    public function confirmDelete($id)
     {
-        $supplier = Supplier::findOrFail($id);
+        $supplier = Supplier::find($id);
+        if ($supplier) {
+            $this->isOpen = false;
+            $this->deleteSupplierId = $supplier->id;
+            $this->deleteSupplierName = $supplier->name;
+            $this->confirmingSupplierDeletion = true;
+        }
+    }
+
+    public function cancelDelete()
+    {
+        $this->confirmingSupplierDeletion = false;
+        $this->deleteSupplierId = null;
+        $this->deleteSupplierName = '';
+    }
+
+    public function delete($id = null)
+    {
+        $targetId = $id ?? $this->deleteSupplierId;
+        if (!$targetId) {
+            return;
+        }
+
+        $supplier = Supplier::findOrFail($targetId);
         
         ActivityLog::create([
             'user_id' => auth()->id() ?? 1,
@@ -113,6 +142,7 @@ class SupplierManager extends Component
 
         $supplier->delete();
         session()->flash('success', 'Supplier deleted successfully.');
+        $this->cancelDelete();
     }
 
     public function render()

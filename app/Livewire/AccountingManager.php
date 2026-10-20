@@ -27,30 +27,31 @@ class AccountingManager extends Component
     use WithPagination;
 
     public $search = '';
-    public $activeTab = 'dashboard'; // dashboard, coa, journals, ledger_detail, closing, assets
-    
-    // Journal Entry fields
+    public $activeTab = 'dashboard'; 
     public $journal_date;
     public $description;
-    public $debit_account_id;
-    public $credit_account_id;
-    public $amount = 0;
-    public $journal_type = 'general'; // general, adjustment, closing
+    public $journal_type = 'general'; 
     public $isOpen = false;
-
-    // Filter properties
+    public $journal_items = []; 
     public $filter_journal_type = '';
-
-    // Ledger Detail properties
     public $selected_account_id;
     public $ledger_start_date;
     public $ledger_end_date;
-
-    // Closing Period properties
+    public $report_type = 'income_statement'; 
+    public $report_period = 'this_month'; 
+    public $report_start_date;
+    public $report_end_date;
+    public $isOpenVoucherModal = false;
+    public $selected_voucher_ref = '';
+    public $voucher_header = [];
+    public $voucher_items = [];
+    public $show_void_confirmation = false;
+    public $void_reason = '';
     public $closing_date;
     public $closing_note;
-
-    // Asset fields
+    public $accounting_lock_date = null;
+    public $new_lock_date = '';
+    public $lock_note = '';
     public $isOpenAssetModal = false;
     public $asset_code;
     public $asset_name;
@@ -66,8 +67,76 @@ class AccountingManager extends Component
         $this->ledger_start_date = now()->startOfMonth()->format('Y-m-d');
         $this->ledger_end_date = now()->endOfMonth()->format('Y-m-d');
         $this->closing_date = now()->endOfMonth()->format('Y-m-d');
+
+        // Financial reports date presets
+        $this->setReportPeriod('this_month');
+
+        // Check active lock date
+        $latestClosing = PeriodClosing::where('status', 'closed')->orderBy('closing_date', 'desc')->first();
+        if ($latestClosing) {
+            $this->accounting_lock_date = $latestClosing->closing_date;
+            $this->new_lock_date = $latestClosing->closing_date;
+        }
+
+        // Initialize 2 default journal item rows
+        $this->resetJournalFields();
     }
 
+    // --- Standard COA Initializer (PSAK Standard) ---
+    public function seedStandardCoa()
+    {
+        $standardAccounts = [
+            // Aset Lancar
+            ['code' => '1101', 'name' => 'Kas Kecil (Petty Cash)', 'type' => 'asset', 'balance' => 0],
+            ['code' => '1102', 'name' => 'Bank BCA - Operasional', 'type' => 'asset', 'balance' => 0],
+            ['code' => '1103', 'name' => 'Bank Mandiri', 'type' => 'asset', 'balance' => 0],
+            ['code' => '1120', 'name' => 'Piutang Usaha (Accounts Receivable)', 'type' => 'asset', 'balance' => 0],
+            ['code' => '1130', 'name' => 'Persediaan Barang Dagang (Inventory)', 'type' => 'asset', 'balance' => 0],
+            ['code' => '1140', 'name' => 'Biaya Dibayar Dimuka (Prepaid Expense)', 'type' => 'asset', 'balance' => 0],
+            ['code' => '1150', 'name' => 'PPN Masukan (VAT In)', 'type' => 'asset', 'balance' => 0],
+            // Aset Tetap
+            ['code' => '1201', 'name' => 'Peralatan & Mesin Kantor', 'type' => 'asset', 'balance' => 0],
+            ['code' => '1202', 'name' => 'Kendaraan Operasional', 'type' => 'asset', 'balance' => 0],
+            ['code' => '1203', 'name' => 'Gedung & Bangunan', 'type' => 'asset', 'balance' => 0],
+            ['code' => '1299', 'name' => 'Akumulasi Penyusutan Aset', 'type' => 'asset', 'balance' => 0],
+            // Liabilitas Lancar
+            ['code' => '2101', 'name' => 'Utang Usaha (Accounts Payable)', 'type' => 'liability', 'balance' => 0],
+            ['code' => '2102', 'name' => 'Utang Gaji & Upah', 'type' => 'liability', 'balance' => 0],
+            ['code' => '2103', 'name' => 'Utang Pajak (PPh & PPN)', 'type' => 'liability', 'balance' => 0],
+            ['code' => '2104', 'name' => 'PPN Keluaran (VAT Out)', 'type' => 'liability', 'balance' => 0],
+            // Liabilitas Jk Panjang
+            ['code' => '2201', 'name' => 'Utang Bank Jangka Panjang', 'type' => 'liability', 'balance' => 0],
+            // Ekuitas
+            ['code' => '3101', 'name' => 'Modal Saham / Pemilik', 'type' => 'equity', 'balance' => 0],
+            ['code' => '3200', 'name' => 'Laba Ditahan (Retained Earnings)', 'type' => 'equity', 'balance' => 0],
+            ['code' => '3999', 'name' => 'Ikhtisar Laba Rugi (Income Summary)', 'type' => 'equity', 'balance' => 0],
+            // Pendapatan
+            ['code' => '4101', 'name' => 'Pendapatan Penjualan Produk', 'type' => 'income', 'balance' => 0],
+            ['code' => '4102', 'name' => 'Pendapatan Jasa / Layanan', 'type' => 'income', 'balance' => 0],
+            ['code' => '4901', 'name' => 'Pendapatan Bunga & Lain-lain', 'type' => 'income', 'balance' => 0],
+            // Beban Pokok & Operasional
+            ['code' => '5101', 'name' => 'Harga Pokok Penjualan (HPP)', 'type' => 'expense', 'balance' => 0],
+            ['code' => '5201', 'name' => 'Beban Gaji & Tunjangan Karyawan', 'type' => 'expense', 'balance' => 0],
+            ['code' => '5202', 'name' => 'Beban Sewa & Tempat Usaha', 'type' => 'expense', 'balance' => 0],
+            ['code' => '5203', 'name' => 'Beban Utilitas, Listrik & Air', 'type' => 'expense', 'balance' => 0],
+            ['code' => '5204', 'name' => 'Beban Pemasaran & Promosi', 'type' => 'expense', 'balance' => 0],
+            ['code' => '5299', 'name' => 'Beban Penyusutan Aset Tetap', 'type' => 'expense', 'balance' => 0],
+            ['code' => '5901', 'name' => 'Beban Bunga & Administrasi Bank', 'type' => 'expense', 'balance' => 0],
+        ];
+
+        $inserted = 0;
+        foreach ($standardAccounts as $acc) {
+            $exists = Account::where('code', $acc['code'])->exists();
+            if (!$exists) {
+                Account::create($acc);
+                $inserted++;
+            }
+        }
+
+        session()->flash('success', "Berhasil menginisialisasi {$inserted} akun standar PSAK.");
+    }
+
+    // --- Multi-Line Journal Entry Methods ---
     public function openModal()
     {
         $this->isOpen = true;
@@ -83,10 +152,11 @@ class AccountingManager extends Component
     {
         $this->journal_date = now()->format('Y-m-d');
         $this->description = '';
-        $this->debit_account_id = '';
-        $this->credit_account_id = '';
-        $this->amount = 0;
         $this->journal_type = 'general';
+        $this->journal_items = [
+            ['account_id' => '', 'memo' => '', 'debit' => '', 'credit' => ''],
+            ['account_id' => '', 'memo' => '', 'debit' => '', 'credit' => ''],
+        ];
     }
 
     public function createJournal()
@@ -95,18 +165,82 @@ class AccountingManager extends Component
         $this->openModal();
     }
 
+    public function addJournalRow()
+    {
+        $this->journal_items[] = ['account_id' => '', 'memo' => '', 'debit' => '', 'credit' => ''];
+    }
+
+    public function removeJournalRow($index)
+    {
+        if (count($this->journal_items) > 2) {
+            unset($this->journal_items[$index]);
+            $this->journal_items = array_values($this->journal_items);
+        } else {
+            session()->flash('error', 'Minimal harus ada 2 baris transaksi untuk jurnal akuntansi berpasangan.');
+        }
+    }
+
+    public function getTotalDebitProperty()
+    {
+        $sum = 0;
+        foreach ($this->journal_items as $item) {
+            $sum += (float) ($item['debit'] ?? 0);
+        }
+        return $sum;
+    }
+
+    public function getTotalCreditProperty()
+    {
+        $sum = 0;
+        foreach ($this->journal_items as $item) {
+            $sum += (float) ($item['credit'] ?? 0);
+        }
+        return $sum;
+    }
+
+    public function getBalanceDiffProperty()
+    {
+        return abs($this->totalDebit - $this->totalCredit);
+    }
+
+    public function getIsBalancedProperty()
+    {
+        return $this->totalDebit > 0 && $this->balanceDiff < 0.01;
+    }
+
     public function storeJournal()
     {
+        // 1. Check Accounting Lock Date
+        if ($this->accounting_lock_date && $this->journal_date <= $this->accounting_lock_date) {
+            $this->addError('journal_date', 'Periode akuntansi pada tanggal ini telah dikunci (Lock Date: ' . date('d/m/Y', strtotime($this->accounting_lock_date)) . '). Tidak dapat memposting jurnal baru.');
+            return;
+        }
+
+        // 2. Base Validation
         $this->validate([
             'journal_date' => 'required|date',
-            'description' => 'required|string',
-            'debit_account_id' => 'required|exists:accounts,id|different:credit_account_id',
-            'credit_account_id' => 'required|exists:accounts,id',
-            'amount' => 'required|numeric|min:1000',
+            'description' => 'required|string|min:3',
             'journal_type' => 'required|in:general,adjustment,closing',
+            'journal_items' => 'required|array|min:2',
+            'journal_items.*.account_id' => 'required|exists:accounts,id',
         ]);
-        
-        $todayPrefix = 'JV-' . now()->format('Ymd') . '-';
+
+        // 3. Balance Check
+        $totalDebit = $this->totalDebit;
+        $totalCredit = $this->totalCredit;
+
+        if ($totalDebit <= 0) {
+            $this->addError('journal_balance', 'Total nominal jurnal tidak boleh nol.');
+            return;
+        }
+
+        if (abs($totalDebit - $totalCredit) > 0.01) {
+            $this->addError('journal_balance', 'Jurnal tidak seimbang (Out of Balance). Selisih: Rp ' . number_format(abs($totalDebit - $totalCredit), 0, ',', '.'));
+            return;
+        }
+
+        // 4. Generate Unique Sequential Voucher Number
+        $todayPrefix = 'JV-' . date('Ymd', strtotime($this->journal_date)) . '-';
         $lastJournal = Journal::where('reference_number', 'like', $todayPrefix . '%')
             ->orderBy('reference_number', 'desc')
             ->first();
@@ -121,53 +255,517 @@ class AccountingManager extends Component
 
         $ref = $todayPrefix . sprintf('%04d', $seq);
 
-        Journal::create([
-            'account_id' => $this->debit_account_id,
-            'transaction_date' => $this->journal_date,
-            'description' => $this->description,
-            'reference_number' => $ref,
-            'amount' => $this->amount,
-            'type' => 'debit',
-            'journal_type' => $this->journal_type,
-        ]);
+        // 5. DB Transaction
+        DB::transaction(function () use ($ref) {
+            foreach ($this->journal_items as $item) {
+                $debit = (float) ($item['debit'] ?? 0);
+                $credit = (float) ($item['credit'] ?? 0);
+                $account = Account::find($item['account_id']);
+                $itemMemo = !empty($item['memo']) ? $item['memo'] : $this->description;
 
-        Journal::create([
-            'account_id' => $this->credit_account_id,
-            'transaction_date' => $this->journal_date,
-            'description' => $this->description,
-            'reference_number' => $ref,
-            'amount' => $this->amount,
-            'type' => 'credit',
-            'journal_type' => $this->journal_type,
-        ]);
+                if ($debit > 0) {
+                    Journal::create([
+                        'account_id' => $account->id,
+                        'transaction_date' => $this->journal_date,
+                        'description' => $itemMemo,
+                        'reference_number' => $ref,
+                        'amount' => $debit,
+                        'type' => 'debit',
+                        'journal_type' => $this->journal_type,
+                        'reference_type' => 'manual',
+                    ]);
 
-        // Adjust Account Balances
-        $debitAcc = Account::find($this->debit_account_id);
-        if (in_array($debitAcc->type, ['asset', 'expense'])) {
-            $debitAcc->increment('balance', $this->amount);
-        } else {
-            $debitAcc->decrement('balance', $this->amount);
+                    // Adjust Account Balance
+                    if (in_array($account->type, ['asset', 'expense'])) {
+                        $account->increment('balance', $debit);
+                    } else {
+                        $account->decrement('balance', $debit);
+                    }
+                }
+
+                if ($credit > 0) {
+                    Journal::create([
+                        'account_id' => $account->id,
+                        'transaction_date' => $this->journal_date,
+                        'description' => $itemMemo,
+                        'reference_number' => $ref,
+                        'amount' => $credit,
+                        'type' => 'credit',
+                        'journal_type' => $this->journal_type,
+                        'reference_type' => 'manual',
+                    ]);
+
+                    // Adjust Account Balance
+                    if (in_array($account->type, ['liability', 'equity', 'income'])) {
+                        $account->increment('balance', $credit);
+                    } else {
+                        $account->decrement('balance', $credit);
+                    }
+                }
+            }
+
+            ActivityLog::create([
+                'user_id' => auth()->id() ?? 1,
+                'module' => 'Accounting',
+                'action' => 'Create Journal Entry',
+                'description' => "Posted Compound Journal {$ref} ({$this->journal_type}) with total Rp " . number_format($this->totalDebit, 0, ',', '.')
+            ]);
+        });
+
+        session()->flash('success', "Bukti Jurnal {$ref} berhasil diposting ke Buku Besar secara seimbang.");
+        $this->closeModal();
+    }
+
+    public function viewVoucher($reference_number)
+    {
+        $this->selected_voucher_ref = $reference_number;
+        $items = Journal::with('account')->where('reference_number', $reference_number)->get();
+
+        if ($items->isEmpty()) {
+            session()->flash('error', 'Bukti jurnal tidak ditemukan.');
+            return;
         }
 
-        $creditAcc = Account::find($this->credit_account_id);
-        if (in_array($creditAcc->type, ['liability', 'equity', 'income'])) {
-            $creditAcc->increment('balance', $this->amount);
-        } else {
-            $creditAcc->decrement('balance', $this->amount);
+        $first = $items->first();
+        $this->voucher_header = [
+            'reference_number' => $first->reference_number,
+            'transaction_date' => $first->transaction_date,
+            'journal_type' => $first->journal_type,
+            'description' => $first->description,
+            'total_debit' => $items->where('type', 'debit')->sum('amount'),
+            'total_credit' => $items->where('type', 'credit')->sum('amount'),
+            'is_reversing' => str_starts_with($first->reference_number, 'REV-'),
+        ];
+
+        $this->voucher_items = $items;
+        $this->show_void_confirmation = false;
+        $this->void_reason = '';
+        $this->isOpenVoucherModal = true;
+    }
+
+    public function closeVoucherModal()
+    {
+        $this->isOpenVoucherModal = false;
+        $this->selected_voucher_ref = '';
+        $this->voucher_items = [];
+        $this->show_void_confirmation = false;
+        $this->void_reason = '';
+    }
+
+    public function confirmVoidVoucher()
+    {
+        $this->show_void_confirmation = true;
+    }
+
+    public function cancelVoidVoucher()
+    {
+        $this->show_void_confirmation = false;
+    }
+
+    public function executeVoidVoucher()
+    {
+        $items = Journal::with('account')->where('reference_number', $this->selected_voucher_ref)->get();
+        if ($items->isEmpty()) {
+            session()->flash('error', 'Bukti jurnal tidak ditemukan.');
+            return;
         }
+
+        $first = $items->first();
+
+        // Check lock date
+        if ($this->accounting_lock_date && $first->transaction_date <= $this->accounting_lock_date) {
+            session()->flash('error', 'Tidak dapat membatalkan transaksi pada periode yang telah dikunci auditor.');
+            return;
+        }
+
+        // Check if already reversed
+        $revRef = 'REV-' . $first->reference_number;
+        $alreadyReversed = Journal::where('reference_number', $revRef)->exists();
+        if ($alreadyReversed || str_starts_with($first->reference_number, 'REV-')) {
+            session()->flash('error', 'Jurnal ini sudah pernah dibatalkan (dibalik).');
+            return;
+        }
+
+        $today = now()->format('Y-m-d');
+        $reason = $this->void_reason ?: 'Pembatalan transaksi oleh user';
+
+        DB::transaction(function () use ($items, $revRef, $today, $reason, $first) {
+            foreach ($items as $item) {
+                // Invert type: debit becomes credit, credit becomes debit
+                $newType = ($item->type === 'debit') ? 'credit' : 'debit';
+                $account = $item->account;
+
+                Journal::create([
+                    'account_id' => $item->account_id,
+                    'transaction_date' => $today,
+                    'description' => "[VOID {$first->reference_number}] {$reason} - " . $item->description,
+                    'reference_number' => $revRef,
+                    'amount' => $item->amount,
+                    'type' => $newType,
+                    'journal_type' => 'adjustment',
+                    'reference_type' => 'reversing_entry',
+                    'reference_id' => $item->id,
+                ]);
+
+                // Revert Account Balance
+                if ($newType === 'debit') {
+                    if (in_array($account->type, ['asset', 'expense'])) {
+                        $account->increment('balance', $item->amount);
+                    } else {
+                        $account->decrement('balance', $item->amount);
+                    }
+                } else {
+                    if (in_array($account->type, ['liability', 'equity', 'income'])) {
+                        $account->increment('balance', $item->amount);
+                    } else {
+                        $account->decrement('balance', $item->amount);
+                    }
+                }
+            }
+
+            ActivityLog::create([
+                'user_id' => auth()->id() ?? 1,
+                'module' => 'Accounting',
+                'action' => 'Void Journal Voucher',
+                'description' => "Voided {$first->reference_number} with reversing voucher {$revRef}. Reason: {$reason}"
+            ]);
+        });
+
+        session()->flash('success', "Bukti jurnal berhasil dibatalkan dengan Jurnal Pembalik ({$revRef}). Saldo akun telah dipulihkan.");
+        $this->closeVoucherModal();
+    }
+
+    // --- Financial Reports Engine ---
+    public function setReportPeriod($preset)
+    {
+        $this->report_period = $preset;
+        if ($preset === 'this_month') {
+            $this->report_start_date = now()->startOfMonth()->format('Y-m-d');
+            $this->report_end_date = now()->endOfMonth()->format('Y-m-d');
+        } elseif ($preset === 'last_month') {
+            $this->report_start_date = now()->subMonth()->startOfMonth()->format('Y-m-d');
+            $this->report_end_date = now()->subMonth()->endOfMonth()->format('Y-m-d');
+        } elseif ($preset === 'this_quarter') {
+            $this->report_start_date = now()->startOfQuarter()->format('Y-m-d');
+            $this->report_end_date = now()->endOfQuarter()->format('Y-m-d');
+        } elseif ($preset === 'this_year') {
+            $this->report_start_date = now()->startOfYear()->format('Y-m-d');
+            $this->report_end_date = now()->endOfYear()->format('Y-m-d');
+        } elseif ($preset === 'all_time') {
+            $this->report_start_date = '2020-01-01';
+            $this->report_end_date = now()->format('Y-m-d');
+        }
+    }
+
+    public function updatedReportPeriod($value)
+    {
+        if ($value !== 'custom') {
+            $this->setReportPeriod($value);
+        }
+    }
+
+    public function drillDownToLedger($accountId)
+    {
+        $this->selected_account_id = $accountId;
+        $this->ledger_start_date = $this->report_start_date;
+        $this->ledger_end_date = $this->report_end_date;
+        $this->activeTab = 'ledger_detail';
+    }
+
+    public function getFinancialReportData()
+    {
+        $start = $this->report_start_date;
+        $end = $this->report_end_date;
+
+        if ($this->report_type === 'income_statement') {
+            // Income accounts
+            $incomeAccounts = Account::where('type', 'income')->orderBy('code')->get();
+            $operatingRevenue = [];
+            $otherRevenue = [];
+            $totalRevenue = 0;
+
+            foreach ($incomeAccounts as $acc) {
+                // Calculate net credit mutations in period
+                $credits = Journal::where('account_id', $acc->id)
+                    ->where('type', 'credit')
+                    ->whereBetween('transaction_date', [$start, $end])
+                    ->sum('amount');
+                $debits = Journal::where('account_id', $acc->id)
+                    ->where('type', 'debit')
+                    ->whereBetween('transaction_date', [$start, $end])
+                    ->sum('amount');
+                $net = $credits - $debits;
+                if ($net != 0 || $acc->balance != 0) {
+                    $row = ['id' => $acc->id, 'code' => $acc->code, 'name' => $acc->name, 'amount' => $net];
+                    if (str_starts_with($acc->code, '49') || str_contains(strtolower($acc->name), 'lain')) {
+                        $otherRevenue[] = $row;
+                    } else {
+                        $operatingRevenue[] = $row;
+                    }
+                    $totalRevenue += $net;
+                }
+            }
+
+            // Expense accounts
+            $expenseAccounts = Account::where('type', 'expense')->orderBy('code')->get();
+            $cogsList = [];
+            $operatingExpenses = [];
+            $otherExpenses = [];
+            $totalCogs = 0;
+            $totalOperatingExpense = 0;
+            $totalOtherExpense = 0;
+
+            foreach ($expenseAccounts as $acc) {
+                $debits = Journal::where('account_id', $acc->id)
+                    ->where('type', 'debit')
+                    ->whereBetween('transaction_date', [$start, $end])
+                    ->sum('amount');
+                $credits = Journal::where('account_id', $acc->id)
+                    ->where('type', 'credit')
+                    ->whereBetween('transaction_date', [$start, $end])
+                    ->sum('amount');
+                $net = $debits - $credits;
+                if ($net != 0 || $acc->balance != 0) {
+                    $row = ['id' => $acc->id, 'code' => $acc->code, 'name' => $acc->name, 'amount' => $net];
+                    if (str_starts_with($acc->code, '51') || str_contains(strtolower($acc->name), 'hpp') || str_contains(strtolower($acc->name), 'pokok')) {
+                        $cogsList[] = $row;
+                        $totalCogs += $net;
+                    } elseif (str_starts_with($acc->code, '59') || str_contains(strtolower($acc->name), 'lain')) {
+                        $otherExpenses[] = $row;
+                        $totalOtherExpense += $net;
+                    } else {
+                        $operatingExpenses[] = $row;
+                        $totalOperatingExpense += $net;
+                    }
+                }
+            }
+
+            $grossProfit = $totalRevenue - $totalCogs;
+            $operatingIncome = $grossProfit - $totalOperatingExpense;
+            $sumOtherRev = array_sum(array_column($otherRevenue, 'amount'));
+            $netProfit = $operatingIncome + $sumOtherRev - $totalOtherExpense;
+
+            return [
+                'operatingRevenue' => $operatingRevenue,
+                'otherRevenue' => $otherRevenue,
+                'totalRevenue' => $totalRevenue,
+                'cogsList' => $cogsList,
+                'totalCogs' => $totalCogs,
+                'grossProfit' => $grossProfit,
+                'operatingExpenses' => $operatingExpenses,
+                'totalOperatingExpense' => $totalOperatingExpense,
+                'operatingIncome' => $operatingIncome,
+                'otherExpenses' => $otherExpenses,
+                'totalOtherExpense' => $totalOtherExpense,
+                'netProfit' => $netProfit,
+            ];
+
+        } elseif ($this->report_type === 'balance_sheet') {
+            // As of report_end_date
+            $accounts = Account::all();
+
+            $currentAssets = [];
+            $nonCurrentAssets = [];
+            $currentLiabilities = [];
+            $longTermLiabilities = [];
+            $equityList = [];
+
+            $totalCurrentAssets = 0;
+            $totalNonCurrentAssets = 0;
+            $totalCurrentLiabilities = 0;
+            $totalLongTermLiabilities = 0;
+            $totalEquity = 0;
+
+            foreach ($accounts as $acc) {
+                // Compute balance as of $end
+                $debits = Journal::where('account_id', $acc->id)->where('type', 'debit')->where('transaction_date', '<=', $end)->sum('amount');
+                $credits = Journal::where('account_id', $acc->id)->where('type', 'credit')->where('transaction_date', '<=', $end)->sum('amount');
+
+                if ($acc->type === 'asset') {
+                    $bal = $debits - $credits;
+                    $row = ['id' => $acc->id, 'code' => $acc->code, 'name' => $acc->name, 'amount' => $bal];
+                    if (str_starts_with($acc->code, '12')) {
+                        $nonCurrentAssets[] = $row;
+                        $totalNonCurrentAssets += $bal;
+                    } else {
+                        $currentAssets[] = $row;
+                        $totalCurrentAssets += $bal;
+                    }
+                } elseif ($acc->type === 'liability') {
+                    $bal = $credits - $debits;
+                    $row = ['id' => $acc->id, 'code' => $acc->code, 'name' => $acc->name, 'amount' => $bal];
+                    if (str_starts_with($acc->code, '22')) {
+                        $longTermLiabilities[] = $row;
+                        $totalLongTermLiabilities += $bal;
+                    } else {
+                        $currentLiabilities[] = $row;
+                        $totalCurrentLiabilities += $bal;
+                    }
+                } elseif ($acc->type === 'equity') {
+                    $bal = $credits - $debits;
+                    $row = ['id' => $acc->id, 'code' => $acc->code, 'name' => $acc->name, 'amount' => $bal];
+                    $equityList[] = $row;
+                    $totalEquity += $bal;
+                }
+            }
+
+            // Current year Net Profit to balance the equity
+            $totalInc = Journal::whereHas('account', fn($q) => $q->where('type', 'income'))->where('type', 'credit')->where('transaction_date', '<=', $end)->sum('amount')
+                      - Journal::whereHas('account', fn($q) => $q->where('type', 'income'))->where('type', 'debit')->where('transaction_date', '<=', $end)->sum('amount');
+            $totalExp = Journal::whereHas('account', fn($q) => $q->where('type', 'expense'))->where('type', 'debit')->where('transaction_date', '<=', $end)->sum('amount')
+                      - Journal::whereHas('account', fn($q) => $q->where('type', 'expense'))->where('type', 'credit')->where('transaction_date', '<=', $end)->sum('amount');
+            $currentPeriodProfit = $totalInc - $totalExp;
+
+            $totalAssets = $totalCurrentAssets + $totalNonCurrentAssets;
+            $totalLiabilitiesAndEquity = $totalCurrentLiabilities + $totalLongTermLiabilities + $totalEquity + $currentPeriodProfit;
+
+            return [
+                'currentAssets' => $currentAssets,
+                'totalCurrentAssets' => $totalCurrentAssets,
+                'nonCurrentAssets' => $nonCurrentAssets,
+                'totalNonCurrentAssets' => $totalNonCurrentAssets,
+                'totalAssets' => $totalAssets,
+                'currentLiabilities' => $currentLiabilities,
+                'totalCurrentLiabilities' => $totalCurrentLiabilities,
+                'longTermLiabilities' => $longTermLiabilities,
+                'totalLongTermLiabilities' => $totalLongTermLiabilities,
+                'equityList' => $equityList,
+                'currentPeriodProfit' => $currentPeriodProfit,
+                'totalEquity' => $totalEquity + $currentPeriodProfit,
+                'totalLiabilitiesAndEquity' => $totalLiabilitiesAndEquity,
+                'isBalanced' => abs($totalAssets - $totalLiabilitiesAndEquity) < 1,
+            ];
+
+        } elseif ($this->report_type === 'trial_balance') {
+            $accounts = Account::orderBy('code')->get();
+            $trialRows = [];
+            $totalDebitMut = 0;
+            $totalCreditMut = 0;
+            $totalEndingDebit = 0;
+            $totalEndingCredit = 0;
+
+            foreach ($accounts as $acc) {
+                // Opening before $start
+                $debBefore = Journal::where('account_id', $acc->id)->where('type', 'debit')->where('transaction_date', '<', $start)->sum('amount');
+                $credBefore = Journal::where('account_id', $acc->id)->where('type', 'credit')->where('transaction_date', '<', $start)->sum('amount');
+                
+                $opening = in_array($acc->type, ['asset', 'expense']) ? ($debBefore - $credBefore) : ($credBefore - $debBefore);
+
+                // Mutations during period
+                $debMut = Journal::where('account_id', $acc->id)->where('type', 'debit')->whereBetween('transaction_date', [$start, $end])->sum('amount');
+                $credMut = Journal::where('account_id', $acc->id)->where('type', 'credit')->whereBetween('transaction_date', [$start, $end])->sum('amount');
+
+                // Ending balance
+                $ending = in_array($acc->type, ['asset', 'expense']) ? ($opening + $debMut - $credMut) : ($opening + $credMut - $debMut);
+
+                $totalDebitMut += $debMut;
+                $totalCreditMut += $credMut;
+
+                if (in_array($acc->type, ['asset', 'expense'])) {
+                    $totalEndingDebit += max(0, $ending);
+                    $totalEndingCredit += max(0, -$ending);
+                } else {
+                    $totalEndingCredit += max(0, $ending);
+                    $totalEndingDebit += max(0, -$ending);
+                }
+
+                $trialRows[] = [
+                    'id' => $acc->id,
+                    'code' => $acc->code,
+                    'name' => $acc->name,
+                    'type' => $acc->type,
+                    'opening' => $opening,
+                    'debit' => $debMut,
+                    'credit' => $credMut,
+                    'ending' => $ending,
+                ];
+            }
+
+            return [
+                'rows' => $trialRows,
+                'totalDebitMut' => $totalDebitMut,
+                'totalCreditMut' => $totalCreditMut,
+                'totalEndingDebit' => $totalEndingDebit,
+                'totalEndingCredit' => $totalEndingCredit,
+                'isBalanced' => abs($totalDebitMut - $totalCreditMut) < 1,
+            ];
+
+        } elseif ($this->report_type === 'cash_flow') {
+            // Cash & Bank accounts
+            $cashAccounts = Account::where('type', 'asset')->where(function($q) {
+                $q->where('code', 'like', '110%')
+                  ->orWhere('name', 'like', '%kas%')
+                  ->orWhere('name', 'like', '%bank%');
+            })->pluck('id');
+
+            $cashIn = Journal::whereIn('account_id', $cashAccounts)
+                ->where('type', 'debit')
+                ->whereBetween('transaction_date', [$start, $end])
+                ->sum('amount');
+
+            $cashOut = Journal::whereIn('account_id', $cashAccounts)
+                ->where('type', 'credit')
+                ->whereBetween('transaction_date', [$start, $end])
+                ->sum('amount');
+
+            // Opening cash before $start
+            $openIn = Journal::whereIn('account_id', $cashAccounts)->where('type', 'debit')->where('transaction_date', '<', $start)->sum('amount');
+            $openOut = Journal::whereIn('account_id', $cashAccounts)->where('type', 'credit')->where('transaction_date', '<', $start)->sum('amount');
+            $openingCash = $openIn - $openOut;
+            $netChange = $cashIn - $cashOut;
+            $closingCash = $openingCash + $netChange;
+
+            return [
+                'openingCash' => $openingCash,
+                'cashIn' => $cashIn,
+                'cashOut' => $cashOut,
+                'netChange' => $netChange,
+                'closingCash' => $closingCash,
+            ];
+        }
+
+        return [];
+    }
+
+    // --- Period Closing & Lock Date Management ---
+    public function setAccountingLockDate()
+    {
+        $this->validate([
+            'new_lock_date' => 'required|date',
+            'lock_note' => 'nullable|string',
+        ]);
+
+        $this->accounting_lock_date = $this->new_lock_date;
+
+        PeriodClosing::create([
+            'closing_date' => $this->new_lock_date,
+            'closed_by' => auth()->id() ?? 1,
+            'status' => 'closed',
+            'notes' => $this->lock_note ?: 'Accounting Lock Date diaktifkan hingga ' . $this->new_lock_date,
+        ]);
 
         ActivityLog::create([
             'user_id' => auth()->id() ?? 1,
             'module' => 'Accounting',
-            'action' => 'Create Journal Entry',
-            'description' => 'Journal entry (' . $this->journal_type . ') ' . $ref . ' posted: Debit ' . $debitAcc->name . ', Credit ' . $creditAcc->name . ' for Rp ' . number_format($this->amount, 0, ',', '.')
+            'action' => 'Set Lock Date',
+            'description' => 'Accounting lock date ditetapkan hingga: ' . $this->new_lock_date
         ]);
 
-        session()->flash('success', 'Journal entry posted successfully.');
-        $this->closeModal();
+        session()->flash('success', 'Accounting Lock Date berhasil disimpan. Transaksi pada atau sebelum tanggal ini dikunci dari perubahan.');
     }
 
-    // Closing Period Action
+    public function unlockAccountingDate()
+    {
+        $this->accounting_lock_date = null;
+        ActivityLog::create([
+            'user_id' => auth()->id() ?? 1,
+            'module' => 'Accounting',
+            'action' => 'Unlock Date',
+            'description' => 'Accounting lock date dinonaktifkan oleh administrator.'
+        ]);
+        session()->flash('info', 'Accounting lock date dinonaktifkan.');
+    }
+
     public function executeClosing()
     {
         $this->validate([
@@ -191,7 +789,7 @@ class AccountingManager extends Component
         $nominalAccounts = Account::whereIn('type', ['income', 'expense'])->where('balance', '!=', 0)->get();
 
         if ($nominalAccounts->isEmpty()) {
-            session()->flash('error', 'No active income or expense accounts to close.');
+            session()->flash('error', 'Tidak ada akun nominal (pendapatan atau beban) dengan saldo berjalan untuk ditutup.');
             return;
         }
 
@@ -203,7 +801,6 @@ class AccountingManager extends Component
                 if ($balance == 0) continue;
 
                 if ($account->type === 'income') {
-                    // Debit Income Account (to make it 0), Credit Income Summary
                     Journal::create([
                         'account_id' => $account->id,
                         'transaction_date' => $this->closing_date,
@@ -229,7 +826,6 @@ class AccountingManager extends Component
 
                     $incomeSummaryAccount->increment('balance', $balance);
                 } elseif ($account->type === 'expense') {
-                    // Credit Expense Account (to make it 0), Debit Income Summary
                     Journal::create([
                         'account_id' => $account->id,
                         'transaction_date' => $this->closing_date,
@@ -261,7 +857,6 @@ class AccountingManager extends Component
             $netIncome = $incomeSummaryAccount->balance;
             if ($netIncome != 0) {
                 if ($netIncome > 0) {
-                    // Debit Income Summary (to make it 0), Credit Retained Earnings
                     Journal::create([
                         'account_id' => $incomeSummaryAccount->id,
                         'transaction_date' => $this->closing_date,
@@ -284,7 +879,6 @@ class AccountingManager extends Component
 
                     $retainedEarningsAccount->increment('balance', $netIncome);
                 } else {
-                    // Credit Income Summary (to make it 0), Debit Retained Earnings
                     $lossAmount = abs($netIncome);
                     Journal::create([
                         'account_id' => $incomeSummaryAccount->id,
@@ -313,13 +907,15 @@ class AccountingManager extends Component
                 $incomeSummaryAccount->save();
             }
 
-            // Save period closing log
+            // Save period closing log and auto-set Lock Date
             PeriodClosing::create([
                 'closing_date' => $this->closing_date,
                 'status' => 'closed',
                 'closed_by' => auth()->id() ?? 1,
                 'notes' => $this->closing_note ?: 'Period closing successfully compiled.',
             ]);
+
+            $this->accounting_lock_date = $this->closing_date;
 
             ActivityLog::create([
                 'user_id' => auth()->id() ?? 1,
@@ -329,11 +925,11 @@ class AccountingManager extends Component
             ]);
         });
 
-        session()->flash('success', 'Fiscal period closed successfully. All income and expense accounts have been reset to zero.');
+        session()->flash('success', 'Tutup buku fiskal berhasil dilaksanakan. Seluruh akun pendapatan & beban telah di-reset ke 0 dan dipindahkan ke Laba Ditahan.');
         $this->activeTab = 'coa';
     }
 
-    // Asset methods
+    // --- Fixed Asset methods ---
     public function createAsset()
     {
         $this->asset_code = 'AST-' . now()->format('Y') . '-' . sprintf('%04d', Asset::count() + 1);
@@ -386,12 +982,12 @@ class AccountingManager extends Component
 
         $depExpenseAcc = Account::firstOrCreate(
             ['code' => '5299'],
-            ['name' => 'Depreciation Expense', 'type' => 'expense', 'balance' => 0]
+            ['name' => 'Beban Penyusutan Aset Tetap', 'type' => 'expense', 'balance' => 0]
         );
 
         $accumDepAcc = Account::firstOrCreate(
             ['code' => '1299'],
-            ['name' => 'Accumulated Depreciation', 'type' => 'asset', 'balance' => 0]
+            ['name' => 'Akumulasi Penyusutan Aset', 'type' => 'asset', 'balance' => 0]
         );
 
         foreach ($assets as $asset) {
@@ -621,6 +1217,12 @@ class AccountingManager extends Component
             }
         }
 
+        // Financial reports data
+        $reportData = [];
+        if ($this->activeTab === 'financial_reports') {
+            $reportData = $this->getFinancialReportData();
+        }
+
         // Period Closings history
         $closings = PeriodClosing::orderBy('closing_date', 'desc')->paginate(10);
 
@@ -634,7 +1236,7 @@ class AccountingManager extends Component
             'closingBalance' => $closingBalance,
             'closings' => $closings,
             'stats' => $this->getDashboardStats(),
+            'reportData' => $reportData,
         ])->layout('layouts.app');
     }
 }
-

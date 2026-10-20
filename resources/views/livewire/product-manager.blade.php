@@ -46,6 +46,7 @@
                         <th class="py-3.5 px-6">Image</th>
                         <th class="py-3.5 px-6">Name</th>
                         <th class="py-3.5 px-6">Category</th>
+                        <th class="py-3.5 px-6 text-center">Type</th>
                         <th class="py-3.5 px-6 text-right">Price</th>
                         <th class="py-3.5 px-6 text-right">Stock</th>
                         <th class="py-3.5 px-6 text-right">Min Stock</th>
@@ -71,21 +72,44 @@
                                     {{ $product->category->name ?? 'Uncategorized' }}
                                 </span>
                             </td>
+                            <td class="py-4 px-6 text-center">
+                                @if(($product->type ?? 'ready_stock') === 'ready_stock')
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+                                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                                        Ready Stock
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+                                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.828a1 1 0 101.415-1.414L11 9.586V6z" clip-rule="evenodd"></path></svg>
+                                        Pre-Order
+                                    </span>
+                                @endif
+                            </td>
                             <td class="py-4 px-6 text-right font-mono">Rp {{ number_format($product->price, 0, ',', '.') }}</td>
                             <td class="py-4 px-6 text-right font-mono">
-                                <span class="{{ $product->stock <= $product->min_stock ? 'text-red-600 font-semibold' : 'text-gray-900' }}">
-                                    {{ number_format($product->stock, 0, ',', '.') }} {{ $product->unit }}
-                                </span>
+                                @if(($product->type ?? 'ready_stock') === 'ready_stock')
+                                    <span class="{{ $product->stock <= $product->min_stock ? 'text-red-600 font-semibold' : 'text-gray-900' }}">
+                                        {{ number_format($product->stock, 0, ',', '.') }} {{ $product->unit }}
+                                    </span>
+                                @else
+                                    <span class="text-gray-400 italic">—</span>
+                                @endif
                             </td>
-                            <td class="py-4 px-6 text-right font-mono text-gray-500">{{ number_format($product->min_stock, 0, ',', '.') }} {{ $product->unit }}</td>
+                            <td class="py-4 px-6 text-right font-mono text-gray-500">
+                                @if(($product->type ?? 'ready_stock') === 'ready_stock')
+                                    {{ number_format($product->min_stock, 0, ',', '.') }} {{ $product->unit }}
+                                @else
+                                    <span class="text-gray-400 italic">—</span>
+                                @endif
+                            </td>
                             <td class="py-4 px-6 text-center space-x-2">
                                 <button wire:click="edit({{ $product->id }})" class="text-blue-600 hover:text-blue-900 font-medium cursor-pointer">Edit</button>
-                                <button wire:click="delete({{ $product->id }})" wire:confirm="Are you sure you want to delete this product?" class="text-red-600 hover:text-red-900 font-medium cursor-pointer">Delete</button>
+                                <button wire:click="confirmDelete({{ $product->id }})" class="text-red-600 hover:text-red-900 font-medium cursor-pointer">Delete</button>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="py-12 text-center text-gray-500">
+                            <td colspan="9" class="py-12 text-center text-gray-500">
                                 No products found match your search criteria.
                             </td>
                         </tr>
@@ -165,6 +189,34 @@
                                 </div>
                             </div>
 
+                            <!-- Product Type Toggle -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Product Type</label>
+                                <div class="flex rounded-lg border border-gray-300 overflow-hidden">
+                                    <label class="flex-1 relative cursor-pointer">
+                                        <input type="radio" wire:model.live="type" value="ready_stock" class="sr-only peer">
+                                        <div class="flex items-center justify-center gap-2 py-2.5 px-4 text-sm font-medium text-center transition-all duration-200
+                                            peer-checked:bg-emerald-50 peer-checked:text-emerald-700 peer-checked:border-emerald-200 peer-checked:shadow-inner
+                                            text-gray-500 hover:bg-gray-50">
+                                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                                            Ready Stock
+                                        </div>
+                                    </label>
+                                    <div class="w-px bg-gray-300"></div>
+                                    <label class="flex-1 relative cursor-pointer">
+                                        <input type="radio" wire:model.live="type" value="pre_order" class="sr-only peer">
+                                        <div class="flex items-center justify-center gap-2 py-2.5 px-4 text-sm font-medium text-center transition-all duration-200
+                                            peer-checked:bg-amber-50 peer-checked:text-amber-700 peer-checked:border-amber-200 peer-checked:shadow-inner
+                                            text-gray-500 hover:bg-gray-50">
+                                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.828a1 1 0 101.415-1.414L11 9.586V6z" clip-rule="evenodd"></path></svg>
+                                            PO (Pre-Order)
+                                        </div>
+                                    </label>
+                                </div>
+                                @error('type') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                            </div>
+
+                            @if($type === 'ready_stock')
                             <div class="grid grid-cols-2 gap-4">
                                 <!-- Stock -->
                                 <div>
@@ -180,6 +232,12 @@
                                     @error('min_stock') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                                 </div>
                             </div>
+                            @else
+                            <div class="p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-700 flex items-start gap-2">
+                                <svg class="w-5 h-5 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                                <span>Pre-Order products do not require stock tracking. Stock and minimum alert stock will be set to 0.</span>
+                            </div>
+                            @endif
 
                             <!-- Image Upload -->
                             <div>
@@ -210,6 +268,60 @@
                         </button>
                         <button type="button" wire:click="store" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none">
                             Save Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- Delete Confirmation Modal Alert -->
+    @if($confirmingProductDeletion)
+        <div class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-delete-title" role="dialog" aria-modal="true">
+            <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                <!-- Backdrop with blur -->
+                <div class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" aria-hidden="true" wire:click="cancelDelete"></div>
+
+                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+                <!-- Modal Alert Content -->
+                <div class="inline-block align-bottom bg-white rounded-2xl px-4 pt-5 pb-4 text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full sm:p-6 border border-gray-100">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                            <!-- Alert Triangle Icon -->
+                            <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                            </svg>
+                        </div>
+                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left flex-1">
+                            <h3 class="text-lg leading-6 font-semibold text-gray-900" id="modal-delete-title">
+                                Delete Product
+                            </h3>
+                            <div class="mt-2 text-sm text-gray-500">
+                                <p>Are you sure you want to delete this product? This action cannot be undone.</p>
+                                @if($deleteProductName)
+                                    <div class="mt-3 p-3 bg-red-50/70 border border-red-100 rounded-lg text-left">
+                                        <div class="text-xs font-mono font-semibold text-blue-600">{{ $deleteProductCode }}</div>
+                                        <div class="text-sm font-semibold text-gray-900 mt-0.5">{{ $deleteProductName }}</div>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 sm:mt-5 sm:flex sm:flex-row-reverse gap-2">
+                        <button type="button" wire:click="delete" wire:loading.attr="disabled" class="w-full inline-flex justify-center items-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-red-600 text-sm font-medium text-white hover:bg-red-700 active:bg-red-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:w-auto transition-colors disabled:opacity-50 cursor-pointer">
+                            <span wire:loading.remove wire:target="delete">Delete</span>
+                            <span wire:loading wire:target="delete" class="inline-flex items-center">
+                                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Deleting...
+                            </span>
+                        </button>
+                        <button type="button" wire:click="cancelDelete" class="mt-2 sm:mt-0 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300 sm:w-auto transition-colors cursor-pointer">
+                            Cancel
                         </button>
                     </div>
                 </div>
