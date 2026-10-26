@@ -262,9 +262,21 @@ Route::get('subscriptions', \App\Livewire\SubscriptionManager::class)
     ->middleware(['auth', 'verified'])
     ->name('subscriptions');
 
+Route::get('subscription', function () {
+    return redirect()->route('subscriptions');
+})->middleware(['auth', 'verified'])->name('subscription');
+
 Route::get('rentals', \App\Livewire\RentalManager::class)
     ->middleware(['auth', 'verified'])
     ->name('rentals');
+
+Route::get('rentals/create', \App\Livewire\RentalForm::class)
+    ->middleware(['auth', 'verified'])
+    ->name('rentals.create');
+
+Route::get('rentals/{id}/edit', \App\Livewire\RentalForm::class)
+    ->middleware(['auth', 'verified'])
+    ->name('rentals.edit');
 
 Route::get('marketing', \App\Livewire\MarketingManager::class)
     ->middleware(['auth', 'verified'])

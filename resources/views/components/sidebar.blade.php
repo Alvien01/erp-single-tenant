@@ -22,19 +22,22 @@
     $showWebsiteMarketing = $show('website-cms') || $show('ecommerce') || $show('marketing') || $show('marketing-automation');
 @endphp
 
-<div class="fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transition-all duration-300 ease-in-out transform"
+<div class="fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transition-all duration-300 ease-in-out transform shadow-lg lg:shadow-none"
      :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'">
     
-    <div class="flex items-center justify-between px-6 h-16 border-b border-gray-200">
-        <span class="text-xl font-bold font-display text-blue-600">CV <span class="text-gray-900">RADI AMARTHA</span></span>
-        <img src="{{ asset('assets/logo.png') }}" alt="Logo" class="h-20 w-auto object-contain transition-transform duration-300 group-hover:scale-105">
+    <div class="flex items-center justify-between px-4 sm:px-5 h-16 border-b border-gray-200">
+        <div class="flex items-center gap-2.5 min-w-0">
+            <img src="{{ asset('assets/logo.png') }}" alt="Logo" class="h-9 w-auto object-contain shrink-0">
+            <span class="text-base font-bold font-display text-blue-600 truncate">CV <span class="text-gray-900">RADI AMARTHA</span></span>
+        </div>
         <!-- Mobile close button -->
-        <button @click="sidebarOpen = false" class="text-gray-500 hover:text-gray-700 lg:hidden focus:outline-none transition duration-150">
+        <button @click="sidebarOpen = false" class="text-gray-500 hover:text-gray-700 lg:hidden p-1.5 rounded-lg hover:bg-gray-100 focus:outline-none transition duration-150 shrink-0 ml-1" title="Tutup menu">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
         </button>
     </div>
 
-    <div class="overflow-y-auto h-full p-4 space-y-1 pb-20">
+    <div class="overflow-y-auto h-full p-4 space-y-1 pb-24"
+         @click="if ($event.target.closest('a')) { if (window.innerWidth < 1024) sidebarOpen = false; }">
         
         <!-- Dashboard -->
         @if ($show('dashboard'))
@@ -66,7 +69,7 @@
 
         <!-- Sales Dropdown -->
         @if ($showSalesWorkflow)
-        <div x-data="{ expanded: {{ request()->routeIs(['sales-quotations', 'sales-orders', 'sales', 'crm', 'pos', 'pos-members', 'pos-promos', 'pos-stores', 'pos-reports', 'delivery-orders', 'returns', 'invoices', 'subscriptions', 'rentals']) ? 'true' : 'false' }} }" class="pt-1">
+        <div x-data="{ expanded: {{ request()->routeIs(['sales-quotations', 'sales-orders', 'sales', 'crm', 'pos', 'pos-members', 'pos-promos', 'pos-stores', 'pos-reports', 'delivery-orders', 'returns', 'invoices', 'subscriptions', 'rentals*']) ? 'true' : 'false' }} }" class="pt-1">
             <button @click="expanded = !expanded" class="w-full flex items-center justify-between px-4 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                 <div class="flex items-center">
                     <svg class="w-5 h-5 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
@@ -88,7 +91,7 @@
                 @if ($show('returns')) <a href="{{ route('returns') }}" class="block px-2 py-1.5 text-sm rounded-md {{ request()->routeIs('returns') ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">Product Returns</a> @endif
                 @if ($show('invoices')) <a href="{{ route('invoices') }}" class="block px-2 py-1.5 text-sm rounded-md {{ request()->routeIs('invoices') ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">Credit/Debit Notes</a> @endif
                 @if ($show('subscriptions')) <a href="{{ route('subscriptions') }}" class="block px-2 py-1.5 text-sm rounded-md {{ request()->routeIs('subscriptions') ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">Subscriptions</a> @endif
-                @if ($show('rentals')) <a href="{{ route('rentals') }}" class="block px-2 py-1.5 text-sm rounded-md {{ request()->routeIs('rentals') ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">Rentals</a> @endif
+                @if ($show('rentals')) <a href="{{ route('rentals') }}" class="block px-2 py-1.5 text-sm rounded-md {{ request()->routeIs('rentals*') ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">Rentals</a> @endif
             </div>
         </div>
         @endif

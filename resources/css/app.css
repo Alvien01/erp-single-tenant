@@ -5,10 +5,119 @@
 [x-cloak] { display: none !important; }
 
 @layer base {
+    html {
+        width: 100%;
+        max-width: 100vw;
+        overflow-x: hidden !important;
+        -webkit-text-size-adjust: 100%;
+        overscroll-behavior-x: none;
+    }
+
     body {
         @apply bg-gray-50 text-gray-900 font-sans leading-relaxed;
+        width: 100%;
+        max-width: 100vw;
+        overflow-x: hidden !important;
+        position: relative;
+        overscroll-behavior-x: none;
+        touch-action: pan-y pinch-zoom;
     }
+
     h1, h2, h3, h4, h5, h6 {
         @apply font-display tracking-tight leading-tight;
+    }
+}
+
+/* ==========================================================================
+   GLOBAL ANTI-HORIZONTAL DRIFT & MOBILE RESPONSIVE GUARDS
+   ========================================================================== */
+
+/* Universal box-sizing */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+/* Prevent flex child blowout: flex items won't exceed screen width */
+.min-w-0 {
+    min-width: 0 !important;
+}
+
+main, .main-content {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow-x: hidden;
+}
+
+/* 
+   Table & Horizontal Containers:
+   Allow smooth horizontal scrolling strictly INSIDE their own container
+   without shifting or scrolling the outer page.
+*/
+.overflow-x-auto,
+[class*="overflow-x-auto"] {
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x pan-y;
+}
+
+/* Custom sleek, modern scrollbars for horizontal tables and tab strips */
+.overflow-x-auto::-webkit-scrollbar,
+[class*="overflow-x-auto"]::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-track,
+[class*="overflow-x-auto"]::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 9999px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb,
+[class*="overflow-x-auto"]::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 9999px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb:hover,
+[class*="overflow-x-auto"]::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* 
+   Mobile Form Controls:
+   Prevent mobile browser (iOS Safari / Chrome) auto-zooming and shaking viewport on input focus
+*/
+@media (max-width: 768px) {
+    input[type="text"],
+    input[type="number"],
+    input[type="search"],
+    input[type="email"],
+    input[type="password"],
+    input[type="date"],
+    select,
+    textarea {
+        font-size: 16px !important;
+    }
+}
+
+/* 
+   Mobile Table & Modal Guard:
+   Keep table rows clean and keep modals constrained strictly inside viewport
+*/
+@media (max-width: 640px) {
+    /* Prevent text wrapping chaos inside dense table cells on mobile */
+    table th, table td {
+        white-space: nowrap;
+    }
+
+    /* Modal containment on mobile */
+    .fixed.inset-0 .inline-block,
+    .fixed.inset-0 [class*="max-w-"] {
+        max-width: calc(100vw - 1.5rem) !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
     }
 }

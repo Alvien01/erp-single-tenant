@@ -157,15 +157,19 @@ class CrmManager extends Component
         $lead = Lead::query()->findOrFail($id);
 
         // 1. Ensure the customer exists or create a new Customer record from the Lead details
-        $customer = Customer::query()->where('email', $lead->email)->first();
+        $customer = null;
+        if (!empty($lead->email)) {
+            $customer = Customer::query()->where('email', $lead->email)->first();
+        }
+
         if (!$customer) {
             $customer = Customer::query()->create([
-                'name' => $lead->contact_name,
+                'name' => $lead->contact_name ?: ($lead->company_name ?: $lead->title),
                 'company_name' => $lead->company_name ?? 'Individual Lead',
                 'email' => $lead->email ?? 'lead-' . $lead->id . '@erp.com',
                 'phone' => $lead->phone ?? '-',
                 'address' => 'Converted from CRM Lead notes: ' . ($lead->notes ?? '-'),
-                'is_active' => true,
+                'type' => !empty($lead->company_name) ? 'company' : 'individual',
             ]);
         }
 

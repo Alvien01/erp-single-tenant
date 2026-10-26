@@ -197,14 +197,14 @@
                                                 @error('items.'.$index.'.product_id') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                                             </td>
                                             <td class="py-2 pr-2">
-                                                <input type="number" wire:model.live="items.{{ $index }}.quantity" class="w-full border border-gray-300 rounded-md py-1.5 px-2 text-sm">
+                                                <input type="number" step="any" min="1" wire:model.live.debounce.150ms="items.{{ $index }}.quantity" class="w-full border border-gray-300 rounded-md py-1.5 px-2 text-sm text-right">
                                                 @error('items.'.$index.'.quantity') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                                             </td>
                                             <td class="py-2 pr-2 text-right">
-                                                <input type="number" wire:model.live="items.{{ $index }}.unit_price" class="w-full border border-gray-300 rounded-md py-1.5 px-2 text-sm text-right">
+                                                <input type="number" step="any" min="0" wire:model.live.debounce.150ms="items.{{ $index }}.unit_price" class="w-full border border-gray-300 rounded-md py-1.5 px-2 text-sm text-right font-mono" placeholder="0">
                                             </td>
-                                            <td class="py-2 pr-2 text-right font-mono text-sm align-middle pt-3">
-                                                Rp {{ number_format($item['total'] ?? 0, 0, ',', '.') }}
+                                            <td class="py-2 pr-2 text-right font-mono text-sm align-middle pt-3 whitespace-nowrap">
+                                                Rp {{ number_format(floatval($item['total'] ?? (floatval($item['quantity'] ?? 0) * floatval($item['unit_price'] ?? 0))), 0, ',', '.') }}
                                             </td>
                                             <td class="py-2 text-center align-middle">
                                                 <button type="button" wire:click="removeItem({{ $index }})" class="text-red-600 hover:text-red-900 font-medium cursor-pointer">

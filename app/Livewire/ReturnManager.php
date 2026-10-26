@@ -79,10 +79,11 @@ class ReturnManager extends Component
                     foreach ($sale->items as $item) {
                         $this->items[] = [
                             'product_id' => $item->product_id,
-                            'name' => $item->product->name,
-                            'qty_original' => $item->quantity,
-                            'qty_returned' => $item->quantity,
+                            'name' => $item->product ? $item->product->name : ($item->product_name ?? 'Product #' . $item->product_id),
+                            'qty_original' => (float)$item->quantity,
+                            'qty_returned' => (float)$item->quantity,
                             'reason' => 'Damaged/Defective',
+                            'unit_price' => (float)($item->unit_price ?? 0),
                         ];
                     }
                 }
@@ -93,10 +94,11 @@ class ReturnManager extends Component
                     foreach ($purchase->items as $item) {
                         $this->items[] = [
                             'product_id' => $item->product_id,
-                            'name' => $item->product->name,
-                            'qty_original' => $item->quantity,
-                            'qty_returned' => $item->quantity,
+                            'name' => $item->product ? $item->product->name : ('Product #' . $item->product_id),
+                            'qty_original' => (float)$item->quantity,
+                            'qty_returned' => (float)$item->quantity,
                             'reason' => 'Incorrect Item',
+                            'unit_price' => (float)($item->unit_price ?? 0),
                         ];
                     }
                 }
@@ -108,6 +110,34 @@ class ReturnManager extends Component
     {
         $this->resetInputFields();
         $this->return_number = 'RET-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -4));
+        $this->openModal();
+    }
+
+    public function edit($id)
+    {
+        $ret = ReturnModel::with('items.product')->findOrFail($id);
+        $this->return_id = $ret->id;
+        $this->return_number = $ret->return_number;
+        $this->type = ($ret->reference_type === Sale::class || $ret->type === 'customer') ? 'sale' : 'purchase';
+        $this->reference_id = $ret->reference_id;
+        $this->warehouse_id = $ret->warehouse_id;
+        $this->return_date = $ret->return_date;
+        $this->status = $ret->status;
+        $this->notes = $ret->notes;
+        $this->isEditMode = true;
+
+        $this->items = [];
+        foreach ($ret->items as $item) {
+            $this->items[] = [
+                'product_id' => $item->product_id,
+                'name' => $item->product ? $item->product->name : ('Product #' . $item->product_id),
+                'qty_original' => (float)($item->qty ?? $item->quantity ?? 0),
+                'qty_returned' => (float)($item->quantity ?? $item->qty ?? 0),
+                'reason' => $item->reason ?? 'Damaged/Defective',
+                'unit_price' => (float)($item->unit_price ?? 0),
+            ];
+        }
+
         $this->openModal();
     }
 
@@ -123,17 +153,28 @@ class ReturnManager extends Component
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.qty_original' => 'required|numeric|min:0.01',
             'items.*.qty_returned' => 'required|numeric|min:0',
-            'items.*.reason' => 'required|string',
+            'items.*.reason' => 'nullable|string',
         ]);
 
         $refType = $this->type === 'sale' ? Sale::class : Purchase::class;
+        $returnType = $this->type === 'sale' ? 'customer' : 'supplier';
+
+        // Calculate total amount
+        $totalAmount = 0;
+        foreach ($this->items as $item) {
+            $qty = floatval($item['qty_returned'] ?? 0);
+            $unitPrice = floatval($item['unit_price'] ?? 0);
+            $totalAmount += ($qty * $unitPrice);
+        }
 
         $ret = ReturnModel::updateOrCreate(['id' => $this->return_id], [
             'return_number' => $this->return_number,
+            'type' => $returnType,
             'reference_type' => $refType,
             'reference_id' => $this->reference_id,
             'warehouse_id' => $this->warehouse_id,
             'return_date' => $this->return_date,
+            'total_amount' => $totalAmount,
             'status' => $this->status,
             'notes' => $this->notes,
             'created_by' => auth()->id() ?? 1,
@@ -142,11 +183,18 @@ class ReturnManager extends Component
         // Recreate items
         ReturnItem::where('return_id', $ret->id)->delete();
         foreach ($this->items as $item) {
+            $qty = floatval($item['qty_returned'] ?? 0);
+            $unitPrice = floatval($item['unit_price'] ?? 0);
+            $subtotal = $qty * $unitPrice;
+
             ReturnItem::create([
                 'return_id' => $ret->id,
                 'product_id' => $item['product_id'],
-                'quantity' => $item['qty_returned'],
-                'reason' => $item['reason'],
+                'qty' => $qty,
+                'quantity' => $qty,
+                'unit_price' => $unitPrice,
+                'subtotal' => $subtotal,
+                'reason' => $item['reason'] ?? '',
             ]);
         }
 
@@ -168,20 +216,23 @@ class ReturnManager extends Component
 
     private function processReturnStock($ret)
     {
+        $ret->load('items.product');
         foreach ($ret->items as $item) {
             $stock = StockItem::firstOrCreate([
                 'product_id' => $item->product_id,
                 'warehouse_id' => $ret->warehouse_id,
             ]);
 
-            if ($ret->reference_type === Sale::class) {
+            $qty = floatval($item->quantity ?? $item->qty ?? 0);
+
+            if ($ret->reference_type === Sale::class || $ret->type === 'customer') {
                 // Return from customer -> Stock goes UP
-                $stock->qty_on_hand += $item->quantity;
+                $stock->qty_on_hand += $qty;
                 $direction = 'in';
                 $notes = "Returned from customer via RET: {$ret->return_number}";
             } else {
                 // Return to supplier -> Stock goes DOWN
-                $stock->qty_on_hand -= $item->quantity;
+                $stock->qty_on_hand -= $qty;
                 $direction = 'out';
                 $notes = "Returned to supplier via RET: {$ret->return_number}";
             }
@@ -189,7 +240,7 @@ class ReturnManager extends Component
 
             Inventory::create([
                 'product_id' => $item->product_id,
-                'quantity' => $item->quantity,
+                'quantity' => $qty,
                 'type' => $direction,
                 'reference_type' => ReturnModel::class,
                 'reference_id' => $ret->id,
@@ -197,14 +248,19 @@ class ReturnManager extends Component
             ]);
 
             $product = $item->product;
-            $product->stock = StockItem::where('product_id', $product->id)->sum('qty_on_hand');
-            $product->save();
+            if ($product) {
+                $product->stock = StockItem::where('product_id', $product->id)->sum('qty_on_hand');
+                $product->save();
+            }
         }
     }
 
     public function completeReturn($id)
     {
-        $ret = ReturnModel::findOrFail($id);
+        $ret = ReturnModel::with('items.product')->findOrFail($id);
+        if ($ret->status === 'completed') {
+            return;
+        }
         $ret->status = 'completed';
         $ret->save();
 

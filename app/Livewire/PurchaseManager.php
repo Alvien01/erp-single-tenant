@@ -83,25 +83,76 @@ class PurchaseManager extends Component
         $this->calculateTotals();
     }
 
-    public function updatedItems($value, $name)
+    public function updated($property, $value = null)
     {
-        $parts = explode('.', $name);
-        if (count($parts) === 3) {
-            $index = $parts[1];
-            $field = $parts[2];
-
-            if ($field === 'product_id' && $value) {
-                $product = Product::find($value);
-                if ($product) {
-                    $this->items[$index]['unit_price'] = $product->price * 0.8; // purchase price estimate (80% of selling price)
-                }
+        if (is_string($property) && str_starts_with($property, 'items.')) {
+            $parts = explode('.', $property);
+            if (count($parts) >= 3) {
+                $index = $parts[1];
+                $field = $parts[2];
+                $this->handleItemFieldUpdated($index, $field, $value);
             }
+        }
+    }
 
-            $qty = floatval($this->items[$index]['quantity'] ?? 0);
-            $price = floatval($this->items[$index]['unit_price'] ?? 0);
-            $this->items[$index]['total'] = $qty * $price;
+    public function updatedItems($value, $key = null)
+    {
+        if ($key) {
+            $parts = explode('.', $key);
+            if (count($parts) === 2) {
+                $index = $parts[0];
+                $field = $parts[1];
+                $this->handleItemFieldUpdated($index, $field, $value);
+            } elseif (count($parts) === 3) {
+                $index = $parts[1];
+                $field = $parts[2];
+                $this->handleItemFieldUpdated($index, $field, $value);
+            }
         }
 
+        $this->recalculateAllTotals();
+    }
+
+    public function handleItemFieldUpdated($index, $field, $value)
+    {
+        if (!isset($this->items[$index])) {
+            return;
+        }
+
+        if ($field === 'product_id') {
+            $this->items[$index]['product_id'] = $value;
+            if ($value) {
+                $product = Product::find($value);
+                if ($product) {
+                    // Auto-fill Unit Cost: use purchase_price if set > 0, otherwise standard product price
+                    $unitCost = (floatval($product->purchase_price) > 0)
+                        ? floatval($product->purchase_price)
+                        : floatval($product->price);
+                    $this->items[$index]['unit_price'] = $unitCost;
+                }
+            } else {
+                $this->items[$index]['unit_price'] = 0;
+            }
+        } elseif ($field === 'quantity') {
+            $this->items[$index]['quantity'] = $value;
+        } elseif ($field === 'unit_price') {
+            $this->items[$index]['unit_price'] = $value;
+        }
+
+        $qty = floatval($this->items[$index]['quantity'] ?? 0);
+        $price = floatval($this->items[$index]['unit_price'] ?? 0);
+        $this->items[$index]['total'] = round($qty * $price, 2);
+
+        $this->calculateTotals();
+    }
+
+    public function recalculateAllTotals()
+    {
+        foreach ($this->items as $index => $item) {
+            $qty = floatval($item['quantity'] ?? 0);
+            $price = floatval($item['unit_price'] ?? 0);
+            $this->items[$index]['total'] = round($qty * $price, 2);
+        }
         $this->calculateTotals();
     }
 
@@ -109,15 +160,16 @@ class PurchaseManager extends Component
     {
         $total = 0;
         foreach ($this->items as $item) {
-            $total += floatval($item['total']);
+            $total += floatval($item['total'] ?? 0);
         }
-        $this->total_amount = $total;
-        $this->tax_amount = $total * 0.11;
-        $this->grand_total = $this->total_amount + $this->tax_amount;
+        $this->total_amount = round($total, 2);
+        $this->tax_amount = round($total * 0.11, 2);
+        $this->grand_total = round($this->total_amount + $this->tax_amount, 2);
     }
 
     public function store()
     {
+        $this->recalculateAllTotals();
         $this->validate([
             'supplier_id' => 'required|exists:suppliers,id',
             'purchase_date' => 'required|date',
@@ -185,13 +237,16 @@ class PurchaseManager extends Component
 
         $this->items = [];
         foreach ($purchase->items as $item) {
+            $qty = floatval($item->quantity);
+            $price = floatval($item->unit_price);
             $this->items[] = [
                 'product_id' => $item->product_id,
-                'quantity' => $item->quantity,
-                'unit_price' => $item->unit_price,
-                'total' => $item->total_price
+                'quantity' => $qty,
+                'unit_price' => $price,
+                'total' => floatval($item->total_price) > 0 ? floatval($item->total_price) : round($qty * $price, 2)
             ];
         }
+        $this->calculateTotals();
 
         $this->isEditMode = true;
         $this->openModal();
