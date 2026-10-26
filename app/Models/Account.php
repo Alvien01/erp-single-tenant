@@ -8,6 +8,10 @@ class Account extends Model
 {
     protected $guarded = [];
 
+    protected $casts = [
+        'balance' => 'decimal:2',
+    ];
+
     public function journals()
     {
         return $this->hasMany(Journal::class);

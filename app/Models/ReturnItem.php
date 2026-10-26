@@ -18,6 +18,13 @@ class ReturnItem extends Model
         'reason',
     ];
 
+    protected $casts = [
+        'qty' => 'decimal:2',
+        'quantity' => 'decimal:2',
+        'unit_price' => 'decimal:2',
+        'subtotal' => 'decimal:2',
+    ];
+
     protected static function boot()
     {
         parent::boot();

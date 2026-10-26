@@ -56,6 +56,14 @@ Route::get('sales-quotations', SalesQuotationManager::class)
     ->middleware(['auth', 'verified'])
     ->name('sales-quotations');
 
+Route::get('sales-quotations/create', \App\Livewire\SalesQuotationForm::class)
+    ->middleware(['auth', 'verified'])
+    ->name('sales-quotations.create');
+
+Route::get('sales-quotations/{id}/edit', \App\Livewire\SalesQuotationForm::class)
+    ->middleware(['auth', 'verified'])
+    ->name('sales-quotations.edit');
+
 Route::get('sales-quotations/{id}/pdf', [SalesQuotationPdfController::class, 'download'])
     ->middleware(['auth', 'verified'])
     ->name('sales-quotations.pdf');
@@ -73,6 +81,14 @@ Route::get('sales-orders', SalesOrderManager::class)
 Route::get('sales', SalesManager::class)
     ->middleware(['auth', 'verified'])
     ->name('sales');
+
+Route::get('sales/create', \App\Livewire\SalesForm::class)
+    ->middleware(['auth', 'verified'])
+    ->name('sales.create');
+
+Route::get('sales/{id}/edit', \App\Livewire\SalesForm::class)
+    ->middleware(['auth', 'verified'])
+    ->name('sales.edit');
 
 Route::get('sales/{id}/pdf', [SalePdfController::class, 'download'])
     ->middleware(['auth', 'verified'])

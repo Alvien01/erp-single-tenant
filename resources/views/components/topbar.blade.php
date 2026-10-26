@@ -183,7 +183,7 @@
                         <p class="text-sm font-medium text-gray-900">{{ auth()->user()->name ?? 'Administrator' }}</p>
                         <p class="text-xs text-gray-500 truncate">{{ auth()->user()->email ?? 'admin@erp.local' }}</p>
                     </div>
-                    <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile Settings</a>
+                    <a href="{{ route('profile') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">Profile Settings</a>
                     <form method="POST" action="/logout">
                         @csrf
                         <button type="submit" class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100">Sign out</button>

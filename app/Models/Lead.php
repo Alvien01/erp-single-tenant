@@ -20,6 +20,11 @@ class Lead extends Model
         'notes',
     ];
 
+    protected $casts = [
+        'expected_revenue' => 'decimal:2',
+        'probability' => 'decimal:2',
+    ];
+
     public function salesperson()
     {
         return $this->belongsTo(User::class, 'user_id');

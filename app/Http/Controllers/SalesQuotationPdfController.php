@@ -12,10 +12,11 @@ class SalesQuotationPdfController extends Controller
     {
         $quotation = SalesQuotation::with(['customer', 'items.product'])->findOrFail($id);
 
-        // Calculate grand total
-        $grandTotal = 0;
-        foreach ($quotation->items as $item) {
-            $grandTotal += ($item->qty * $item->price) - ($item->discount ?? 0);
+        $grandTotal = floatval($quotation->grand_total ?: 0);
+        if ($grandTotal <= 0) {
+            foreach ($quotation->items as $item) {
+                $grandTotal += ($item->qty * $item->price) - ($item->discount ?? 0);
+            }
         }
 
         $company = [
@@ -46,9 +47,11 @@ class SalesQuotationPdfController extends Controller
     {
         $quotation = SalesQuotation::with(['customer', 'items.product'])->findOrFail($id);
 
-        $grandTotal = 0;
-        foreach ($quotation->items as $item) {
-            $grandTotal += ($item->qty * $item->price) - ($item->discount ?? 0);
+        $grandTotal = floatval($quotation->grand_total ?: 0);
+        if ($grandTotal <= 0) {
+            foreach ($quotation->items as $item) {
+                $grandTotal += ($item->qty * $item->price) - ($item->discount ?? 0);
+            }
         }
 
         $company = [

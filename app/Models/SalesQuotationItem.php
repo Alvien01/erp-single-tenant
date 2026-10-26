@@ -12,6 +12,13 @@ class SalesQuotationItem extends Model
 
     protected $guarded = [];
 
+    protected $casts = [
+        'qty' => 'decimal:2',
+        'price' => 'decimal:2',
+        'discount' => 'decimal:2',
+        'subtotal' => 'decimal:2',
+    ];
+
     public function salesQuotation(): BelongsTo
     {
         return $this->belongsTo(SalesQuotation::class);

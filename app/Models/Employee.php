@@ -9,6 +9,12 @@ class Employee extends Model
 {
     protected $guarded = [];
 
+    protected $casts = [
+        'salary' => 'decimal:2',
+        'transport_allowance' => 'decimal:2',
+        'meal_allowance' => 'decimal:2',
+    ];
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

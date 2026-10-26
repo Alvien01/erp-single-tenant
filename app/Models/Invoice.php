@@ -28,6 +28,12 @@ class Invoice extends Model
         'created_by',
     ];
 
+    protected $casts = [
+        'total_amount' => 'decimal:2',
+        'tax_amount' => 'decimal:2',
+        'grand_total' => 'decimal:2',
+    ];
+
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
