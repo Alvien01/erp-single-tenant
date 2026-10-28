@@ -74,7 +74,6 @@
     <!-- Tasks Tab (Kanban) -->
     @if($activeTab === 'tasks')
         <div class="flex gap-6 overflow-x-auto pb-4">
-            @php $stages = ['todo', 'in_progress', 'done']; @endphp
             @foreach($stages as $stage)
                 <div class="flex-shrink-0 w-80 bg-gray-50 rounded-lg border border-gray-200 p-4"
                      ondragover="event.preventDefault()"

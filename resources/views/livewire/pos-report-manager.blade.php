@@ -48,13 +48,11 @@
         <div class="lg:col-span-2 bg-white rounded-lg shadow-sm border p-6">
             <h3 class="font-bold text-gray-900 mb-4">Revenue Harian</h3>
             <div class="flex items-end justify-between h-48 px-2 border-b border-gray-150 pb-2">
-                @php $maxDaily = $dailyRevenue->max('total') ?: 1; @endphp
                 @foreach($dailyRevenue as $d)
-                @php $hPct = max(($d->total / $maxDaily) * 100, 5); @endphp
                 <div class="flex flex-col items-center flex-1 group">
-                    <span class="text-[9px] font-mono text-blue-600 mb-1 opacity-0 group-hover:opacity-100 transition">{{ number_format($d->total/1000000, 1) }}M</span>
-                    <div class="w-full max-w-8 bg-blue-100 rounded-t hover:bg-blue-600 transition cursor-pointer mx-0.5" style="height: {{ $hPct }}%"></div>
-                    <span class="text-[9px] text-gray-400 mt-1">{{ \Carbon\Carbon::parse($d->date)->format('d/m') }}</span>
+                    <span class="text-[9px] font-mono text-blue-600 mb-1 opacity-0 group-hover:opacity-100 transition">{{ $d->formatted_millions }}</span>
+                    <div class="w-full max-w-8 bg-blue-100 rounded-t hover:bg-blue-600 transition cursor-pointer mx-0.5" style="height: {{ $d->height_pct }}%"></div>
+                    <span class="text-[9px] text-gray-400 mt-1">{{ $d->formatted_date }}</span>
                 </div>
                 @endforeach
                 @if($dailyRevenue->isEmpty())
@@ -66,13 +64,12 @@
             <h3 class="font-bold text-gray-900 mb-4">Metode Pembayaran</h3>
             <div class="space-y-4">
                 @foreach($paymentBreakdown as $pm)
-                @php $pPct = $totalRevenue > 0 ? ($pm->total / $totalRevenue) * 100 : 0; $colors = ['cash'=>'bg-emerald-500','qris'=>'bg-blue-500','bank_transfer'=>'bg-purple-500','multi'=>'bg-amber-500']; @endphp
                 <div>
                     <div class="flex justify-between text-sm mb-1">
                         <span class="font-medium text-gray-700 uppercase">{{ $pm->payment_method }}</span>
                         <span class="font-mono text-gray-500">{{ $pm->count }} trx • Rp {{ number_format($pm->total, 0, ',', '.') }}</span>
                     </div>
-                    <div class="w-full bg-gray-100 rounded-full h-2"><div class="{{ $colors[$pm->payment_method] ?? 'bg-gray-400' }} h-2 rounded-full" style="width: {{ $pPct }}%"></div></div>
+                    <div class="w-full bg-gray-100 rounded-full h-2"><div class="{{ $pm->color_class }} h-2 rounded-full" style="width: {{ $pm->percentage }}%"></div></div>
                 </div>
                 @endforeach
                 @if($paymentBreakdown->isEmpty())<p class="text-sm text-gray-400 text-center py-4">Belum ada data</p>@endif
@@ -147,7 +144,7 @@
                 <div class="p-4 flex justify-between bg-blue-50"><span class="font-bold text-blue-700">Laba Kotor (Gross Profit)</span><span class="font-mono font-bold text-blue-700">Rp {{ number_format($grossProfit, 0, ',', '.') }}</span></div>
                 <div class="p-4 flex justify-between"><span class="text-gray-500 pl-4">(-) Total Diskon Diberikan</span><span class="font-mono text-red-600">Rp {{ number_format($totalDiscount, 0, ',', '.') }}</span></div>
                 <div class="p-4 flex justify-between"><span class="text-gray-500 pl-4">(+) Pajak Terkumpul</span><span class="font-mono text-emerald-600">Rp {{ number_format($totalTax, 0, ',', '.') }}</span></div>
-                <div class="p-4 flex justify-between bg-emerald-50 border-t-2 border-emerald-200"><span class="font-bold text-emerald-800 text-lg">Estimasi Laba Bersih</span><span class="font-mono font-bold text-emerald-800 text-lg">Rp {{ number_format($grossProfit - $totalDiscount + $totalTax, 0, ',', '.') }}</span></div>
+                <div class="p-4 flex justify-between bg-emerald-50 border-t-2 border-emerald-200"><span class="font-bold text-emerald-800 text-lg">Estimasi Laba Bersih</span><span class="font-mono font-bold text-emerald-800 text-lg">Rp {{ number_format($estimatedNetProfit, 0, ',', '.') }}</span></div>
             </div>
         </div>
     </div>

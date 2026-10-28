@@ -44,30 +44,18 @@
                 </thead>
                 <tbody class="divide-y divide-gray-200">
                     @forelse($returns as $ret)
-                        @php
-                            $statusColors = match($ret->status) {
-                                'draft' => 'bg-gray-100 text-gray-700',
-                                'completed' => 'bg-emerald-100 text-emerald-800',
-                                'cancelled' => 'bg-red-100 text-red-800',
-                            };
-                            $typeColors = match($ret->type_label = ($ret->reference_type === \App\Models\Sale::class ? 'customer' : 'vendor')) {
-                                'customer' => 'bg-blue-50 text-blue-700 border-blue-200',
-                                'vendor' => 'bg-purple-50 text-purple-700 border-purple-200',
-                            };
-                            $refNo = $ret->reference ? ($ret->reference_type === \App\Models\Sale::class ? $ret->reference->invoice_number : $ret->reference->purchase_number) : '-';
-                        @endphp
                         <tr class="hover:bg-gray-50 transition duration-150">
                             <td class="py-4 px-6 font-mono font-bold text-gray-900">{{ $ret->return_number }}</td>
                             <td class="py-4 px-6">
-                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border {{ $typeColors }}">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border {{ $ret->type_badge_class }}">
                                     {{ ucfirst($ret->type_label) }}
                                 </span>
                             </td>
-                            <td class="py-4 px-6 font-mono text-gray-700">{{ $refNo }}</td>
+                            <td class="py-4 px-6 font-mono text-gray-700">{{ $ret->reference_number }}</td>
                             <td class="py-4 px-6 text-gray-700">{{ $ret->warehouse->warehouse_name }}</td>
                             <td class="py-4 px-6 text-gray-500">{{ $ret->return_date }}</td>
                             <td class="py-4 px-6">
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold {{ $statusColors }}">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold {{ $ret->status_badge_class }}">
                                     {{ ucfirst($ret->status) }}
                                 </span>
                             </td>

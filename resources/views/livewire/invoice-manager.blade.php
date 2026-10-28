@@ -44,31 +44,18 @@
                 </thead>
                 <tbody class="divide-y divide-gray-200">
                     @forelse($invoices as $inv)
-                        @php
-                            $statusColors = match($inv->status) {
-                                'draft' => 'bg-gray-100 text-gray-700',
-                                'posted' => 'bg-blue-100 text-blue-800',
-                                'paid' => 'bg-emerald-100 text-emerald-800',
-                                'void' => 'bg-red-100 text-red-800',
-                            };
-                            $typeColors = match($inv->type) {
-                                'credit_note' => 'bg-emerald-50 text-emerald-700 border-emerald-200',
-                                'debit_note' => 'bg-rose-50 text-rose-700 border-rose-200',
-                            };
-                            $partnerName = $inv->type === 'credit_note' ? ($inv->customer->name ?? '-') : ($inv->supplier->name ?? '-');
-                        @endphp
                         <tr class="hover:bg-gray-50 transition duration-150">
                             <td class="py-4 px-6 font-mono font-bold text-gray-900">{{ $inv->invoice_number }}</td>
                             <td class="py-4 px-6">
-                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border {{ $typeColors }}">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border {{ $inv->type_badge_class }}">
                                     {{ $inv->type === 'credit_note' ? 'Credit Note' : 'Debit Note' }}
                                 </span>
                             </td>
-                            <td class="py-4 px-6 text-gray-900">{{ $partnerName }}</td>
+                            <td class="py-4 px-6 text-gray-900">{{ $inv->partner_name }}</td>
                             <td class="py-4 px-6 text-gray-500">{{ $inv->date }}</td>
                             <td class="py-4 px-6 text-right font-mono font-bold text-gray-900">Rp {{ number_format($inv->grand_total, 0, ',', '.') }}</td>
                             <td class="py-4 px-6">
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold {{ $statusColors }}">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold {{ $inv->status_badge_class }}">
                                     {{ ucfirst($inv->status) }}
                                 </span>
                             </td>

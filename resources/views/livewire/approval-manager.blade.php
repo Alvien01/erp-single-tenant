@@ -50,13 +50,6 @@
                     </thead>
                     <tbody class="divide-y divide-gray-200">
                         @forelse($requests as $req)
-                            @php
-                                $statusColors = match($req->status) {
-                                    'pending' => 'bg-amber-100 text-amber-800',
-                                    'approved' => 'bg-emerald-100 text-emerald-800',
-                                    'rejected' => 'bg-red-100 text-red-800',
-                                };
-                            @endphp
                             <tr class="hover:bg-gray-50 transition duration-150">
                                 <td class="py-4 px-6 font-mono font-bold text-gray-900">#{{ $req->id }}</td>
                                 <td class="py-4 px-6 font-medium text-gray-700">{{ $req->rule->module_type }}</td>
@@ -65,7 +58,7 @@
                                 <td class="py-4 px-6 text-gray-500 font-semibold uppercase">{{ $req->rule->role_required }}</td>
                                 <td class="py-4 px-6 text-gray-500">{{ $req->approver->name ?? '-' }}</td>
                                 <td class="py-4 px-6">
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold {{ $statusColors }}">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold {{ $req->status_badge_class }}">
                                         {{ ucfirst($req->status) }}
                                     </span>
                                 </td>

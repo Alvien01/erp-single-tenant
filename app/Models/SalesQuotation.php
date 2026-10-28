@@ -32,4 +32,21 @@ class SalesQuotation extends Model
     {
         return $this->hasMany(SalesQuotationItem::class);
     }
+
+    public function getTaxLabelAttribute(): string
+    {
+        return match ($this->tax_type) {
+            'pph_05' => 'PPh 0,5%',
+            'ppn_12', 'ppn_11' => 'PPN 12%',
+            'none' => 'Bebas Pajak (0%)',
+            default => 'PPh 0,5%',
+        };
+    }
+
+    public function getCalculatedItemsSubtotalAttribute(): float
+    {
+        return (float) $this->items->sum(function ($item) {
+            return $item->calculated_subtotal;
+        });
+    }
 }

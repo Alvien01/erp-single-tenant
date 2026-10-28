@@ -82,25 +82,22 @@
         <!-- Messages stream -->
         <div id="chatStream" class="flex-1 overflow-y-auto p-6 space-y-4">
             @forelse($messages as $msg)
-                @php
-                    $isOwn = $msg->sender_id === Auth::id();
-                @endphp
-                <div class="flex {{ $isOwn ? 'justify-end' : 'justify-start' }}">
+                <div class="flex {{ $msg->is_own ? 'justify-end' : 'justify-start' }}">
                     <div class="max-w-md space-y-0.5">
                         <!-- Message Author Header -->
-                        @if(!$isOwn)
+                        @if(!$msg->is_own)
                             <div class="text-[10px] font-semibold text-gray-500 pl-1">
                                 {{ $msg->sender->name }}
                             </div>
                         @endif
 
                         <!-- Message Content Bubble -->
-                        <div class="px-4 py-2.5 rounded-lg shadow-sm text-sm {{ $isOwn ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-gray-800 border border-gray-100 rounded-bl-none' }}">
+                        <div class="px-4 py-2.5 rounded-lg shadow-sm text-sm {{ $msg->is_own ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-gray-800 border border-gray-100 rounded-bl-none' }}">
                             <p class="whitespace-pre-line">{{ $msg->message }}</p>
                         </div>
 
                         <!-- Message Timestamp Footer -->
-                        <div class="text-[9px] text-gray-400 font-mono {{ $isOwn ? 'text-right pr-1' : 'pl-1' }}">
+                        <div class="text-[9px] text-gray-400 font-mono {{ $msg->is_own ? 'text-right pr-1' : 'pl-1' }}">
                             {{ $msg->created_at->format('H:i') }}
                         </div>
                     </div>

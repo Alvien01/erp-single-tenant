@@ -128,14 +128,7 @@
                             <td class="py-4 px-6 text-gray-600">{{ $req->request_date->format('d M Y') }}</td>
                             <td class="py-4 px-6 text-gray-600">{{ $req->repair_date ? $req->repair_date->format('d M Y') : '-' }}</td>
                             <td class="py-4 px-6">
-                                @php
-                                    $prioColor = match($req->priority) {
-                                        'low' => 'bg-gray-50 text-gray-700 border-gray-200',
-                                        'medium' => 'bg-blue-50 text-blue-700 border-blue-100',
-                                        'high' => 'bg-red-50 text-red-700 border-red-100',
-                                    };
-                                @endphp
-                                <span class="px-2 py-0.5 text-xs font-semibold rounded-full border {{ $prioColor }}">
+                                <span class="px-2 py-0.5 text-xs font-semibold rounded-full border {{ $req->priority_badge_class }}">
                                     {{ ucfirst($req->priority) }}
                                 </span>
                             </td>
@@ -143,15 +136,7 @@
                                 Rp {{ number_format($req->cost, 0, ',', '.') }}
                             </td>
                             <td class="py-4 px-6 text-center">
-                                @php
-                                    $badgeColor = match($req->status) {
-                                        'requested' => 'bg-gray-50 text-gray-600 border-gray-100',
-                                        'in_progress' => 'bg-amber-50 text-amber-700 border-amber-100',
-                                        'repaired' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
-                                        'scrap' => 'bg-red-50 text-red-700 border-red-100',
-                                    };
-                                @endphp
-                                <span class="px-2.5 py-0.5 inline-flex items-center text-xs font-semibold rounded-full border {{ $badgeColor }}">
+                                <span class="px-2.5 py-0.5 inline-flex items-center text-xs font-semibold rounded-full border {{ $req->status_badge_class }}">
                                     {{ ucfirst(str_replace('_', ' ', $req->status)) }}
                                 </span>
                             </td>

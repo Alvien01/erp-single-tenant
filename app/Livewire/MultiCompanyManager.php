@@ -113,7 +113,11 @@ class MultiCompanyManager extends Component
         $companies = Company::where('name', 'like', '%' . $this->search . '%')->paginate(10);
         $rules = InterCompanyRule::with(['sourceCompany', 'targetCompany'])->paginate(10);
         $allCompanies = Company::orderBy('name')->get();
+        $currentData = match($this->activeTab) {
+            'rules' => $rules,
+            default => $companies,
+        };
 
-        return view('livewire.multi-company-manager', compact('companies', 'rules', 'allCompanies'))->layout('layouts.app');
+        return view('livewire.multi-company-manager', compact('companies', 'rules', 'allCompanies', 'currentData'))->layout('layouts.app');
     }
 }

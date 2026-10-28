@@ -18,15 +18,7 @@
     </div>
 
     <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-                @php
-            $varMap = [
-                'routings' => $routings ?? [],
-                'subcontracting' => $subcontracts ?? [],
-                'eco' => $ecos ?? [],
-                'mps' => $schedules ?? [],
-            ];
-            $currentData = $varMap[$activeTab] ?? [];
-        @endphp
+
         
         <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
             <input wire:model.live.debounce.300ms="search" type="text" class="w-full md:w-1/3 focus:ring-blue-500 focus:border-blue-500 sm:text-sm border-gray-300 rounded-md" placeholder="Search {{ $activeTab }}...">

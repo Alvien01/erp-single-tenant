@@ -157,12 +157,27 @@ class WebsiteCmsManager extends Component
     public function render()
     {
         $s = '%' . $this->search . '%';
+        $pages = CmsPage::where('title', 'like', $s)->orderByDesc('id')->paginate(10, ['*'], 'pagesPage');
+        $blogs = BlogPost::where('title', 'like', $s)->orderByDesc('id')->paginate(10, ['*'], 'blogsPage');
+        $appointments = Appointment::with(['customer', 'assignee'])->where('title', 'like', $s)->orderByDesc('start_time')->paginate(10, ['*'], 'aptsPage');
+        $events = Event::withCount('attendees')->where('name', 'like', $s)->orderByDesc('start_date')->paginate(10, ['*'], 'evtsPage');
+        $courses = Course::withCount(['lessons', 'enrollments'])->where('title', 'like', $s)->orderByDesc('id')->paginate(10, ['*'], 'crsPage');
+
+        $currentData = match($this->activeTab) {
+            'blog' => $blogs,
+            'appointments' => $appointments,
+            'events' => $events,
+            'elearning' => $courses,
+            default => $pages,
+        };
+
         return view('livewire.website-cms-manager', [
-            'pages' => CmsPage::where('title', 'like', $s)->orderByDesc('id')->paginate(10, ['*'], 'pagesPage'),
-            'blogs' => BlogPost::where('title', 'like', $s)->orderByDesc('id')->paginate(10, ['*'], 'blogsPage'),
-            'appointments' => Appointment::with(['customer', 'assignee'])->where('title', 'like', $s)->orderByDesc('start_time')->paginate(10, ['*'], 'aptsPage'),
-            'events' => Event::withCount('attendees')->where('name', 'like', $s)->orderByDesc('start_date')->paginate(10, ['*'], 'evtsPage'),
-            'courses' => Course::withCount(['lessons', 'enrollments'])->where('title', 'like', $s)->orderByDesc('id')->paginate(10, ['*'], 'crsPage'),
+            'pages' => $pages,
+            'blogs' => $blogs,
+            'appointments' => $appointments,
+            'events' => $events,
+            'courses' => $courses,
+            'currentData' => $currentData,
             'customers' => Customer::orderBy('name')->get(),
             'users' => User::orderBy('name')->get(),
         ])->layout('layouts.app');

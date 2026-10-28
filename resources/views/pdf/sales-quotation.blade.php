@@ -274,21 +274,14 @@
             </tr>
         </thead>
         <tbody>
-            @php $calcGrandTotal = 0; $calcItemsSubtotal = 0; @endphp
             @foreach($quotation->items as $i => $item)
-                @php
-                    $prodName = !empty($item->product_name) ? $item->product_name : ($item->product->name ?? '-');
-                    $prodModel = !empty($item->model) ? $item->model : ($item->product->sku ?? ($item->product->unit ?? '-'));
-                    $subtotal = (is_numeric($item->subtotal) && floatval($item->subtotal) > 0) ? floatval($item->subtotal) : ($item->qty * $item->price);
-                    $calcItemsSubtotal += $subtotal;
-                @endphp
                 <tr>
                     <td class="text-center">{{ $i + 1 }}</td>
-                    <td>{{ $prodName }}</td>
+                    <td>{{ $item->display_name }}</td>
                     <td class="text-right">Rp {{ number_format($item->price, 0, ',', '.') }}</td>
                     <td class="text-center">{{ (int)$item->qty }}</td>
-                    <td class="text-center">{{ $prodModel }}</td>
-                    <td class="text-right">Rp {{ number_format($subtotal, 0, ',', '.') }}</td>
+                    <td class="text-center">{{ $item->display_model }}</td>
+                    <td class="text-right">Rp {{ number_format($item->calculated_subtotal, 0, ',', '.') }}</td>
                 </tr>
             @endforeach
         </tbody>
@@ -309,17 +302,9 @@
                 <td class="summary-value">- Rp {{ number_format($quotation->discount_amount, 0, ',', '.') }}</td>
             </tr>
             @endif
-            @php
-                $pdfTaxLabel = match($quotation->tax_type) {
-                    'pph_05' => 'PPh 0,5%',
-                    'ppn_12', 'ppn_11' => 'PPN 12%',
-                    'none' => 'Bebas Pajak (0%)',
-                    default => 'PPh 0,5%'
-                };
-            @endphp
             <tr class="summary-border">
                 <td colspan="4"></td>
-                <td class="summary-label">{{ $pdfTaxLabel }}</td>
+                <td class="summary-label">{{ $taxLabel ?? $quotation->tax_label }}</td>
                 <td class="summary-value">Rp {{ number_format($quotation->tax_amount, 0, ',', '.') }}</td>
             </tr>
             @if(floatval($quotation->shipping_price ?: 0) > 0)
@@ -338,7 +323,7 @@
             <tr class="summary-border">
                 <td style="width: 75%;" colspan="4"></td>
                 <td class="summary-label" style="font-size: 12px; width: 12%;">Total Harga</td>
-                <td class="summary-value" style="font-size: 12px; width: 13%;">Rp {{ number_format($calcItemsSubtotal, 0, ',', '.') }}</td>
+                <td class="summary-value" style="font-size: 12px; width: 13%;">Rp {{ number_format($calcItemsSubtotal ?? $quotation->calculated_items_subtotal, 0, ',', '.') }}</td>
             </tr>
         @endif
     </table>

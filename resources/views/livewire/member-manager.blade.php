@@ -41,8 +41,7 @@
                         <td class="py-3 px-4 font-medium text-gray-900">{{ $m->name }}</td>
                         <td class="py-3 px-4 text-gray-500">{{ $m->phone ?? '-' }}</td>
                         <td class="py-3 px-4 text-center">
-                            @php $tierColors = ['gold' => 'bg-amber-100 text-amber-800', 'silver' => 'bg-gray-100 text-gray-800', 'bronze' => 'bg-orange-100 text-orange-800']; @endphp
-                            <span class="px-2 py-0.5 rounded-full text-xs font-bold {{ $tierColors[$m->tier] ?? 'bg-gray-100 text-gray-600' }}">{{ ucfirst($m->tier) }}</span>
+                            <span class="px-2 py-0.5 rounded-full text-xs font-bold {{ $m->tier_color }}">{{ ucfirst($m->tier) }}</span>
                         </td>
                         <td class="py-3 px-4 text-right font-mono font-bold">{{ number_format($m->total_points) }}</td>
                         <td class="py-3 px-4 text-right font-mono">Rp {{ number_format($m->total_spending, 0, ',', '.') }}</td>

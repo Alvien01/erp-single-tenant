@@ -92,15 +92,7 @@
                                 <td class="py-4 px-6 text-gray-600 font-mono">{{ number_format($vehicle->odometer, 0) }} km</td>
                                 <td class="py-4 px-6 text-gray-600">{{ $vehicle->acquisition_date ? $vehicle->acquisition_date->format('d M Y') : '-' }}</td>
                                 <td class="py-4 px-6 text-center">
-                                    @php
-                                        $badgeColor = match($vehicle->status) {
-                                            'active' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
-                                            'in_service' => 'bg-amber-50 text-amber-700 border-amber-100',
-                                            'out_of_service' => 'bg-red-50 text-red-700 border-red-100',
-                                            'sold' => 'bg-gray-50 text-gray-600 border-gray-100',
-                                        };
-                                    @endphp
-                                    <span class="px-2.5 py-0.5 inline-flex items-center text-xs font-semibold rounded-full border {{ $badgeColor }}">
+                                    <span class="px-2.5 py-0.5 inline-flex items-center text-xs font-semibold rounded-full border {{ $vehicle->status_badge_class }}">
                                         {{ str_replace('_', ' ', ucfirst($vehicle->status)) }}
                                     </span>
                                 </td>
@@ -145,15 +137,7 @@
                                 <td class="py-4 px-6 text-gray-600">{{ $service->provider ?: '-' }}</td>
                                 <td class="py-4 px-6 text-gray-900 font-mono font-bold">Rp {{ number_format($service->cost, 0, ',', '.') }}</td>
                                 <td class="py-4 px-6 text-center">
-                                    @php
-                                        $badgeColor = match($service->status) {
-                                            'planned' => 'bg-gray-50 text-gray-600 border-gray-100',
-                                            'in_progress' => 'bg-amber-50 text-amber-700 border-amber-100',
-                                            'completed' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
-                                            'canceled' => 'bg-red-50 text-red-700 border-red-100',
-                                        };
-                                    @endphp
-                                    <span class="px-2.5 py-0.5 inline-flex items-center text-xs font-semibold rounded-full border {{ $badgeColor }}">
+                                    <span class="px-2.5 py-0.5 inline-flex items-center text-xs font-semibold rounded-full border {{ $service->status_badge_class }}">
                                         {{ ucfirst($service->status) }}
                                     </span>
                                 </td>

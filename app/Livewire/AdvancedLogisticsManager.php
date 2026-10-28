@@ -98,9 +98,17 @@ class AdvancedLogisticsManager extends Component
     public function render()
     {
         $s = '%'.$this->search.'%';
+        $carriers = DeliveryCarrier::where('name','like',$s)->paginate(10,['*'],'carriersPage');
+        $dropships = DropshipOrder::with(['supplier','customer','carrier'])->where('dropship_number','like',$s)->orderByDesc('id')->paginate(10,['*'],'dsPage');
+        $currentData = match($this->activeTab) {
+            'dropship' => $dropships,
+            default => $carriers,
+        };
+
         return view('livewire.advanced-logistics-manager', [
-            'carriers' => DeliveryCarrier::where('name','like',$s)->paginate(10,['*'],'carriersPage'),
-            'dropships' => DropshipOrder::with(['supplier','customer','carrier'])->where('dropship_number','like',$s)->orderByDesc('id')->paginate(10,['*'],'dsPage'),
+            'carriers' => $carriers,
+            'dropships' => $dropships,
+            'currentData' => $currentData,
             'suppliers' => Supplier::orderBy('name')->get(),
             'customers' => Customer::orderBy('name')->get(),
             'products' => Product::orderBy('name')->get(),

@@ -63,4 +63,31 @@ class Invoice extends Model
     {
         return $this->morphTo();
     }
+
+    public function getStatusBadgeClassAttribute(): string
+    {
+        return match($this->status) {
+            'draft' => 'bg-gray-100 text-gray-700',
+            'posted' => 'bg-blue-100 text-blue-800',
+            'paid' => 'bg-emerald-100 text-emerald-800',
+            'void' => 'bg-red-100 text-red-800',
+            default => 'bg-gray-100 text-gray-700',
+        };
+    }
+
+    public function getTypeBadgeClassAttribute(): string
+    {
+        return match($this->type) {
+            'credit_note' => 'bg-emerald-50 text-emerald-700 border-emerald-200',
+            'debit_note' => 'bg-rose-50 text-rose-700 border-rose-200',
+            default => 'bg-gray-50 text-gray-700 border-gray-200',
+        };
+    }
+
+    public function getPartnerNameAttribute(): string
+    {
+        return $this->type === 'credit_note'
+            ? ($this->customer->name ?? '-')
+            : ($this->supplier->name ?? '-');
+    }
 }

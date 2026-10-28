@@ -96,17 +96,7 @@
                                 <td class="py-4 px-6 text-center">
                                     <div class="inline-flex space-x-1">
                                         @foreach(['applied', 'interview', 'offered', 'hired', 'rejected'] as $stage)
-                                            @php
-                                                $active = $app->status === $stage;
-                                                $btnColor = match($stage) {
-                                                    'applied' => $active ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700 hover:bg-blue-100',
-                                                    'interview' => $active ? 'bg-amber-500 text-white' : 'bg-amber-50 text-amber-700 hover:bg-amber-100',
-                                                    'offered' => $active ? 'bg-purple-600 text-white' : 'bg-purple-50 text-purple-700 hover:bg-purple-100',
-                                                    'hired' => $active ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100',
-                                                    'rejected' => $active ? 'bg-red-600 text-white' : 'bg-red-50 text-red-700 hover:bg-red-100',
-                                                };
-                                            @endphp
-                                            <button wire:click="updateApplicantStatus({{ $app->id }}, '{{ $stage }}')" class="px-2 py-0.5 text-xs font-semibold rounded {{ $btnColor }} transition border border-transparent">
+                                            <button wire:click="updateApplicantStatus({{ $app->id }}, '{{ $stage }}')" class="px-2 py-0.5 text-xs font-semibold rounded {{ $app->getStageButtonClass($stage) }} transition border border-transparent">
                                                 {{ ucfirst($stage) }}
                                             </button>
                                         @endforeach
@@ -151,13 +141,7 @@
                                 <td class="py-4 px-6 text-gray-600 font-mono">{{ $job->expected_employees }}</td>
                                 <td class="py-4 px-6 text-gray-600 font-mono">{{ $job->applicants_count }} applicants</td>
                                 <td class="py-4 px-6 text-center">
-                                    @php
-                                        $badgeColor = match($job->status) {
-                                            'open' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
-                                            'closed' => 'bg-red-50 text-red-700 border-red-100',
-                                        };
-                                    @endphp
-                                    <span class="px-2.5 py-0.5 inline-flex items-center text-xs font-semibold rounded-full border {{ $badgeColor }}">
+                                    <span class="px-2.5 py-0.5 inline-flex items-center text-xs font-semibold rounded-full border {{ $job->status_badge_class }}">
                                         {{ ucfirst($job->status) }}
                                     </span>
                                 </td>

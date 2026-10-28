@@ -58,4 +58,18 @@ class Promotion extends Model
 
         return true;
     }
+
+    public function getTypeLabelAttribute(): string
+    {
+        $typeLabels = [
+            'percentage' => 'Diskon %',
+            'fixed' => 'Diskon Rp',
+            'bogo' => 'BOGO',
+            'bundle' => 'Bundle',
+            'tiered' => 'Bertingkat',
+            'member_only' => 'Member',
+        ];
+
+        return $typeLabels[$this->type] ?? $this->type;
+    }
 }

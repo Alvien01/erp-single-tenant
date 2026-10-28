@@ -32,11 +32,24 @@ class AdvancedManufacturingManager extends Component
     public function render()
     {
         $s = '%'.$this->search.'%';
+        $routings = MrpRouting::with('bom')->where('name', 'like', $s)->paginate(10, ['*'], 'rtPage');
+        $subcontracts = SubcontractingOrder::with(['supplier', 'product'])->where('subcontract_number', 'like', $s)->paginate(10, ['*'], 'subPage');
+        $ecos = EcoRequest::with(['bom', 'product', 'requester'])->where('eco_number', 'like', $s)->paginate(10, ['*'], 'ecoPage');
+        $schedules = ProductionSchedule::with('product')->where('period', 'like', $s)->paginate(10, ['*'], 'mpsPage');
+
+        $currentData = match($this->activeTab) {
+            'subcontracting' => $subcontracts,
+            'eco' => $ecos,
+            'mps' => $schedules,
+            default => $routings,
+        };
+
         return view('livewire.advanced-manufacturing-manager', [
-            'routings' => MrpRouting::with('bom')->where('name', 'like', $s)->paginate(10, ['*'], 'rtPage'),
-            'subcontracts' => SubcontractingOrder::with(['supplier', 'product'])->where('subcontract_number', 'like', $s)->paginate(10, ['*'], 'subPage'),
-            'ecos' => EcoRequest::with(['bom', 'product', 'requester'])->where('eco_number', 'like', $s)->paginate(10, ['*'], 'ecoPage'),
-            'schedules' => ProductionSchedule::with('product')->where('period', 'like', $s)->paginate(10, ['*'], 'mpsPage'),
+            'routings' => $routings,
+            'subcontracts' => $subcontracts,
+            'ecos' => $ecos,
+            'schedules' => $schedules,
+            'currentData' => $currentData,
             'boms' => Bom::with('product')->get(),
             'products' => Product::orderBy('name')->get(),
             'workCenters' => WorkCenter::all(),

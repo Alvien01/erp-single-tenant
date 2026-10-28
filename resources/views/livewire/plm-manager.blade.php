@@ -161,26 +161,8 @@
                                     <div class="text-[11px] text-gray-400">{{ $eco->created_at->format('d M Y') }}</div>
                                 </td>
                                 <td class="py-3.5 px-4 text-center whitespace-nowrap">
-                                    @php
-                                        $badge = match($eco->status) {
-                                            'draft' => 'bg-gray-100 text-gray-700 border-gray-200',
-                                            'pending_review' => 'bg-amber-50 text-amber-700 border-amber-200',
-                                            'approved' => 'bg-blue-50 text-blue-700 border-blue-200',
-                                            'applied' => 'bg-emerald-50 text-emerald-700 border-emerald-200',
-                                            'rejected' => 'bg-red-50 text-red-700 border-red-200',
-                                            default => 'bg-gray-50 text-gray-600 border-gray-200'
-                                        };
-                                        $label = match($eco->status) {
-                                            'draft' => 'Draft',
-                                            'pending_review' => 'Pending Review',
-                                            'approved' => 'Approved',
-                                            'applied' => 'Applied (Live)',
-                                            'rejected' => 'Rejected',
-                                            default => ucfirst($eco->status)
-                                        };
-                                    @endphp
-                                    <span class="px-2.5 py-1 text-xs font-semibold rounded-full border {{ $badge }}">
-                                        {{ $label }}
+                                    <span class="px-2.5 py-1 text-xs font-semibold rounded-full border {{ $eco->status_badge_class }}">
+                                        {{ $eco->status_label }}
                                     </span>
                                 </td>
                                 <td class="py-3.5 px-4 text-center whitespace-nowrap">

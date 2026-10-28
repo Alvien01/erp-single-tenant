@@ -29,4 +29,9 @@ class ChatMessage extends Model
     {
         return $this->belongsTo(User::class, 'receiver_id');
     }
+
+    public function getIsOwnAttribute(): bool
+    {
+        return $this->sender_id === auth()->id();
+    }
 }

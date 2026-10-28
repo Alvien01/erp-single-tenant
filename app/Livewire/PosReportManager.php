@@ -38,17 +38,37 @@ class PosReportManager extends Component
         $avgTransaction = $totalTransactions > 0 ? $totalRevenue / $totalTransactions : 0;
 
         // Payment method breakdown
+        $paymentColors = [
+            'cash' => 'bg-emerald-500',
+            'qris' => 'bg-blue-500',
+            'bank_transfer' => 'bg-purple-500',
+            'multi' => 'bg-amber-500',
+        ];
+
         $paymentBreakdown = (clone $query)
             ->select('payment_method', DB::raw('COUNT(*) as count'), DB::raw('SUM(grand_total) as total'))
             ->groupBy('payment_method')
-            ->get();
+            ->get()
+            ->map(function ($pm) use ($totalRevenue, $paymentColors) {
+                $pm->percentage = $totalRevenue > 0 ? ($pm->total / $totalRevenue) * 100 : 0;
+                $pm->color_class = $paymentColors[$pm->payment_method] ?? 'bg-gray-400';
+                return $pm;
+            });
 
         // Daily revenue for chart
-        $dailyRevenue = (clone $query)
+        $rawDailyRevenue = (clone $query)
             ->select(DB::raw('DATE(created_at) as date'), DB::raw('SUM(grand_total) as total'), DB::raw('COUNT(*) as trx_count'))
             ->groupBy('date')
             ->orderBy('date')
             ->get();
+
+        $maxDaily = $rawDailyRevenue->max('total') ?: 1;
+        $dailyRevenue = $rawDailyRevenue->map(function ($d) use ($maxDaily) {
+            $d->height_pct = max(($d->total / $maxDaily) * 100, 5);
+            $d->formatted_millions = number_format($d->total / 1000000, 1) . 'M';
+            $d->formatted_date = \Carbon\Carbon::parse($d->date)->format('d/m');
+            return $d;
+        });
 
         // Top products
         $topProducts = DB::table('pos_transaction_items')
@@ -82,6 +102,7 @@ class PosReportManager extends Component
         $grossRevenue = $totalRevenue;
         $cogs = $grossRevenue * 0.6; // Simplified: 60% COGS assumption
         $grossProfit = $grossRevenue - $cogs;
+        $estimatedNetProfit = $grossProfit - $totalDiscount + $totalTax;
 
         return view('livewire.pos-report-manager', [
             'totalRevenue' => $totalRevenue,
@@ -97,6 +118,7 @@ class PosReportManager extends Component
             'grossRevenue' => $grossRevenue,
             'cogs' => $cogs,
             'grossProfit' => $grossProfit,
+            'estimatedNetProfit' => $estimatedNetProfit,
             'stores' => Store::where('is_active', true)->get(),
         ]);
     }

@@ -25,4 +25,15 @@ class FleetService extends Model
     {
         return $this->belongsTo(Fleet::class);
     }
+
+    public function getStatusBadgeClassAttribute(): string
+    {
+        return match($this->status) {
+            'planned' => 'bg-gray-50 text-gray-600 border-gray-100',
+            'in_progress' => 'bg-amber-50 text-amber-700 border-amber-100',
+            'completed' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
+            'canceled' => 'bg-red-50 text-red-700 border-red-100',
+            default => 'bg-gray-50 text-gray-600 border-gray-100',
+        };
+    }
 }

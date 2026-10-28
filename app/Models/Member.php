@@ -58,4 +58,14 @@ class Member extends Model
             $this->update(['tier' => 'silver']);
         }
     }
+
+    public function getTierColorAttribute(): string
+    {
+        return match ($this->tier) {
+            'gold' => 'bg-amber-100 text-amber-800',
+            'silver' => 'bg-gray-100 text-gray-800',
+            'bronze' => 'bg-orange-100 text-orange-800',
+            default => 'bg-gray-100 text-gray-600',
+        };
+    }
 }

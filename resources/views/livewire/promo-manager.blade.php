@@ -52,8 +52,7 @@
                             <div class="text-xs text-gray-400">{{ $p->description }}</div>
                         </td>
                         <td class="py-3 px-4 text-center">
-                            @php $typeLabels = ['percentage'=>'Diskon %','fixed'=>'Diskon Rp','bogo'=>'BOGO','bundle'=>'Bundle','tiered'=>'Bertingkat','member_only'=>'Member']; @endphp
-                            <span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">{{ $typeLabels[$p->type] ?? $p->type }}</span>
+                            <span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">{{ $p->type_label }}</span>
                         </td>
                         <td class="py-3 px-4 text-right font-mono">
                             @if($p->type === 'percentage') {{ $p->value }}% @elseif($p->type === 'bogo') Beli {{ $p->buy_qty }} Gratis {{ $p->free_qty }} @else Rp {{ number_format($p->value, 0, ',', '.') }} @endif

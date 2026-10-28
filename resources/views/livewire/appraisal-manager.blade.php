@@ -150,13 +150,7 @@
                             <td class="py-4 px-6 text-gray-600">{{ $app->manager->name }}</td>
                             <td class="py-4 px-6 text-gray-600">{{ $app->appraisal_date->format('d M Y') }}</td>
                             <td class="py-4 px-6 text-center">
-                                @php
-                                    $badgeColor = match($app->status) {
-                                        'draft' => 'bg-gray-50 text-gray-600 border-gray-100',
-                                        'confirmed' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
-                                    };
-                                @endphp
-                                <span class="px-2.5 py-0.5 inline-flex items-center text-xs font-semibold rounded-full border {{ $badgeColor }}">
+                                <span class="px-2.5 py-0.5 inline-flex items-center text-xs font-semibold rounded-full border {{ $app->status_badge_class }}">
                                     {{ ucfirst($app->status) }}
                                 </span>
                             </td>

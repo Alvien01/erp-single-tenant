@@ -140,6 +140,7 @@ class ProjectManager extends Component
         return view('livewire.project-manager', [
             'projects' => Project::query()->with('customer')->orderByDesc('id')->get(),
             'tasks' => Task::query()->with(['project', 'assignee'])->orderByDesc('id')->get(),
+            'stages' => ['todo', 'in_progress', 'done'],
             'customers' => Customer::all(),
             'users' => User::all(),
         ]);

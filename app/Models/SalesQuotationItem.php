@@ -28,4 +28,21 @@ class SalesQuotationItem extends Model
     {
         return $this->belongsTo(Product::class);
     }
+
+    public function getDisplayNameAttribute(): string
+    {
+        return !empty($this->product_name) ? $this->product_name : ($this->product->name ?? '-');
+    }
+
+    public function getDisplayModelAttribute(): string
+    {
+        return !empty($this->model) ? $this->model : ($this->product->sku ?? ($this->product->unit ?? '-'));
+    }
+
+    public function getCalculatedSubtotalAttribute(): float
+    {
+        return (is_numeric($this->subtotal) && floatval($this->subtotal) > 0)
+            ? floatval($this->subtotal)
+            : ((float) $this->qty * (float) $this->price);
+    }
 }

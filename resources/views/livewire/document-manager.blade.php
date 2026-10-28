@@ -140,20 +140,8 @@
                             </td>
                             <td class="py-4 px-6 text-gray-600 font-medium">{{ $doc->creator->name }}</td>
                             <td class="py-4 px-6 text-center">
-                                @php
-                                    $badgeColor = match($doc->status) {
-                                        'draft' => 'bg-gray-100 text-gray-600 border-gray-200',
-                                        'pending_signature' => 'bg-amber-50 text-amber-700 border-amber-100',
-                                        'signed' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
-                                    };
-                                    $labelText = match($doc->status) {
-                                        'draft' => 'Draft',
-                                        'pending_signature' => 'Needs Signature',
-                                        'signed' => 'Signed & Sealed',
-                                    };
-                                @endphp
-                                <span class="px-2.5 py-0.5 inline-flex items-center text-xs font-semibold rounded-full border {{ $badgeColor }}">
-                                    {{ $labelText }}
+                                <span class="px-2.5 py-0.5 inline-flex items-center text-xs font-semibold rounded-full border {{ $doc->status_badge_class }}">
+                                    {{ $doc->status_label }}
                                 </span>
                             </td>
                             <td class="py-4 px-6 text-right space-x-2">

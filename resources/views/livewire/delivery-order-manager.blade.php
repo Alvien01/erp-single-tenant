@@ -44,15 +44,6 @@
                 </thead>
                 <tbody class="divide-y divide-gray-200">
                     @forelse($deliveryOrders as $do)
-                        @php
-                            $statusColors = match($do->status) {
-                                'draft' => 'bg-gray-100 text-gray-700',
-                                'ready' => 'bg-blue-100 text-blue-800',
-                                'shipped' => 'bg-amber-100 text-amber-800',
-                                'delivered' => 'bg-emerald-100 text-emerald-800',
-                                'cancelled' => 'bg-red-100 text-red-800',
-                            };
-                        @endphp
                         <tr class="hover:bg-gray-50 transition duration-150">
                             <td class="py-4 px-6 font-mono font-bold text-gray-900">{{ $do->do_number }}</td>
                             <td class="py-4 px-6 font-mono text-blue-600">{{ $do->salesOrder->so_number }}</td>
@@ -60,7 +51,7 @@
                             <td class="py-4 px-6 text-gray-700">{{ $do->warehouse->warehouse_name }}</td>
                             <td class="py-4 px-6 text-gray-500">{{ $do->delivery_date }}</td>
                             <td class="py-4 px-6">
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold {{ $statusColors }}">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold {{ $do->status_badge_class }}">
                                     {{ ucfirst($do->status) }}
                                 </span>
                             </td>

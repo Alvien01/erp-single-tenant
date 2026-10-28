@@ -162,15 +162,13 @@
                                 Rp {{ number_format($rental->deposit_amount, 0, ',', '.') }}
                             </td>
                             <td class="py-3.5 px-4 text-center whitespace-nowrap">
-                                @php $badge = $rental->status_badge; @endphp
-                                <span class="px-2.5 py-1 text-xs font-medium rounded-full border {{ $badge['class'] }}">
-                                    {{ $badge['label'] }}
+                                <span class="px-2.5 py-1 text-xs font-medium rounded-full border {{ $rental->status_badge['class'] }}">
+                                    {{ $rental->status_badge['label'] }}
                                 </span>
                             </td>
                             <td class="py-3.5 px-4 text-center whitespace-nowrap">
-                                @php $payBadge = $rental->payment_status_badge; @endphp
-                                <span class="px-2 py-0.5 text-xs font-medium rounded-full border {{ $payBadge['class'] }}">
-                                    {{ $payBadge['label'] }}
+                                <span class="px-2 py-0.5 text-xs font-medium rounded-full border {{ $rental->payment_status_badge['class'] }}">
+                                    {{ $rental->payment_status_badge['label'] }}
                                 </span>
                             </td>
                             <td class="py-3.5 px-4 text-center whitespace-nowrap">
@@ -257,8 +255,7 @@
                     <div>
                         <div class="flex items-center gap-2">
                             <h3 class="text-lg font-bold text-gray-900 font-mono">{{ $selectedRental->rental_number }}</h3>
-                            @php $b = $selectedRental->status_badge; @endphp
-                            <span class="px-2.5 py-0.5 text-xs font-medium rounded-full border {{ $b['class'] }}">{{ $b['label'] }}</span>
+                            <span class="px-2.5 py-0.5 text-xs font-medium rounded-full border {{ $selectedRental->status_badge['class'] }}">{{ $selectedRental->status_badge['label'] }}</span>
                         </div>
                         <p class="text-xs text-gray-500 mt-0.5">Dibuat pada {{ $selectedRental->created_at ? $selectedRental->created_at->format('d M Y H:i') : '-' }}</p>
                     </div>
@@ -347,8 +344,7 @@
                             </div>
                             <div class="flex justify-between items-center pt-2">
                                 <span class="text-gray-500">Status Pembayaran</span>
-                                @php $pb = $selectedRental->payment_status_badge; @endphp
-                                <span class="px-2 py-0.5 text-xs font-semibold rounded-full border {{ $pb['class'] }}">{{ $pb['label'] }}</span>
+                                <span class="px-2 py-0.5 text-xs font-semibold rounded-full border {{ $selectedRental->payment_status_badge['class'] }}">{{ $selectedRental->payment_status_badge['label'] }}</span>
                             </div>
                         </div>
                     </div>
