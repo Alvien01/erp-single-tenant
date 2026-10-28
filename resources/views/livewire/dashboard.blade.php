@@ -39,32 +39,10 @@
                     class="absolute left-0 top-full mt-2 z-50 w-64 bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden"
                     style="display: none;"
                 >
-                    @php
-                    $groups = [
-                        'Quick' => [
-                            'today'        => 'Today',
-                            'yesterday'    => 'Yesterday',
-                            'last_7_days'  => 'Last 7 Days',
-                            'last_30_days' => 'Last 30 Days',
-                        ],
-                        'Monthly' => [
-                            'this_month'    => 'This Month',
-                            'last_month'    => 'Last Month',
-                            'this_month_ly' => 'This Month Last Year',
-                        ],
-                        'Annual' => [
-                            'this_year' => 'This Year',
-                            'last_year' => 'Last Year',
-                        ],
-                        'Financial Year' => [
-                            'current_fy' => 'Current Financial Year',
-                            'last_fy'    => 'Last Financial Year',
-                        ],
-                    ];
-                    @endphp
+                    {{-- $presetGroups is prepared in Dashboard::render() --}}
 
                     <div class="py-2 max-h-80 overflow-y-auto">
-                        @foreach($groups as $groupLabel => $items)
+                        @foreach($presetGroups as $groupLabel => $items)
                         <div class="px-3 pt-2 pb-1">
                             <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{{ $groupLabel }}</p>
                         </div>
@@ -164,16 +142,7 @@
     ═══════════════════════════════════════════════ --}}
     <div class="border-b border-gray-200 mb-6">
         <nav class="-mb-px flex flex-wrap gap-2 md:gap-6" aria-label="Tabs">
-            @php
-                $tabs = [
-                    'overview' => ['label' => 'Ringkasan', 'icon' => 'M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4zM14 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2v-4z'],
-                    'master_data' => ['label' => 'Master Data', 'icon' => 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01'],
-                    'sales_workflow' => ['label' => 'Sales & Workflow', 'icon' => 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z'],
-                    'manufacturing' => ['label' => 'Manufacturing', 'icon' => 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z'],
-                    'warehouse_stock' => ['label' => 'Warehouse & Stock', 'icon' => 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4'],
-                    'hr_recruitment' => ['label' => 'HR & Recruitment', 'icon' => 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a3 3 0 11-6 0 3 3 0 016 0z'],
-                ];
-            @endphp
+            {{-- $tabs is prepared in Dashboard::render() --}}
             @foreach($tabs as $tabKey => $tab)
                 <button
                     wire:click="setTab('{{ $tabKey }}')"
@@ -401,10 +370,7 @@
                                     <span>IN: <strong class="text-emerald-700">{{ $myAttendance->check_in ? Carbon\Carbon::parse($myAttendance->check_in)->format('H:i') : '--:--' }}</strong></span>
                                     <span>OUT: <strong class="text-rose-700">{{ $myAttendance->check_out ? Carbon\Carbon::parse($myAttendance->check_out)->format('H:i') : '--:--' }}</strong></span>
                                     @if($myAttendance->check_in && $myAttendance->check_out)
-                                        @php
-                                            $dur = Carbon\Carbon::parse($myAttendance->check_in)->diff(Carbon\Carbon::parse($myAttendance->check_out));
-                                        @endphp
-                                        <span class="text-blue-600">Durasi: <strong>{{ $dur->format('%H:%I') }}</strong></span>
+                                        <span class="text-blue-600">Durasi: <strong>{{ Carbon\Carbon::parse($myAttendance->check_in)->diff(Carbon\Carbon::parse($myAttendance->check_out))->format('%H:%I') }}</strong></span>
                                     @endif
                                 </div>
                             @endif
@@ -445,10 +411,7 @@
 
                     {{-- Clock Buttons --}}
                     <div class="space-y-2 mt-auto">
-                        @php
-                            $canClockIn  = $currentEmployee && (!$myAttendance || !$myAttendance->check_in);
-                            $canClockOut = $currentEmployee && $myAttendance && $myAttendance->check_in && !$myAttendance->check_out;
-                        @endphp
+                        {{-- $canClockIn / $canClockOut are prepared in Dashboard::render() --}}
 
                         <button type="button"
                             @if($canClockIn)
@@ -602,23 +565,16 @@
             </div>
             
             <div class="mt-6 flex items-end justify-between gap-1 h-48 px-2 font-sans border-b border-gray-150 pb-2">
-                @php
-                    $maxTrend = !empty($salesTrend) ? (max(array_values($salesTrend)) ?: 1) : 1;
-                @endphp
-                @forelse($salesTrend as $month => $val)
-                    @php
-                        $heightPercent = ($val / $maxTrend) * 100;
-                        $heightPercent = max($heightPercent, 4);
-                    @endphp
+                @forelse($trendBars as $bar)
                     <div class="flex flex-col items-center flex-1 group min-w-0">
                         <span class="text-[10px] font-bold font-mono text-blue-600 mb-1 opacity-0 group-hover:opacity-100 transition duration-150 whitespace-nowrap">
-                            Rp{{ number_format($val/1000000, 1) }}M
+                            Rp{{ number_format($bar['amount']/1000000, 1) }}M
                         </span>
                         <div
                             class="w-full bg-blue-100 rounded-t hover:bg-blue-600 transition duration-200 ease-in-out cursor-pointer"
-                            style="height: {{ $heightPercent }}%;"
+                            style="height: {{ $bar['height'] }}%;"
                         ></div>
-                        <span class="text-[10px] font-semibold text-gray-500 mt-2 truncate w-full text-center">{{ $month }}</span>
+                        <span class="text-[10px] font-semibold text-gray-500 mt-2 truncate w-full text-center">{{ $bar['label'] }}</span>
                     </div>
                 @empty
                     <div class="w-full flex items-center justify-center text-gray-400 text-sm">
@@ -704,29 +660,20 @@
             </div>
             
             <div class="mt-4">
-                @php
-                    $max30 = !empty($salesLast30Days) ? (max(array_values($salesLast30Days)) ?: 1) : 1;
-                    $chartData30 = array_slice($salesLast30Days, -15, 15, true); // Show last 15 days for better visibility
-                @endphp
                 <div class="flex items-end justify-between gap-1 h-64 px-1 font-sans">
-                    @forelse($chartData30 as $day => $amount)
-                        @php
-                            $heightPercent = ($amount / $max30) * 100;
-                            $heightPercent = max($heightPercent, 4);
-                            $isWeekend = in_array(Carbon\Carbon::parse($day)->dayOfWeek, [0, 6]);
-                        @endphp
+                    @forelse($last30Bars as $bar)
                         <div class="flex flex-col items-center flex-1 group min-w-0">
                             <span class="text-[9px] font-bold font-mono text-blue-600 mb-1 opacity-0 group-hover:opacity-100 transition duration-150 whitespace-nowrap">
-                                Rp{{ number_format($amount/1000000, 1) }}M
+                                Rp{{ number_format($bar['amount']/1000000, 1) }}M
                             </span>
                             <div
                                 class="w-full rounded-t transition-all duration-200 ease-in-out cursor-pointer relative overflow-hidden
-                                    {{ $isWeekend ? 'bg-gray-200 hover:bg-gray-300' : 'bg-blue-500 hover:bg-blue-600' }}"
-                                style="height: {{ $heightPercent }}%;"
+                                    {{ $bar['weekend'] ? 'bg-gray-200 hover:bg-gray-300' : 'bg-blue-500 hover:bg-blue-600' }}"
+                                style="height: {{ $bar['height'] }}%;"
                             >
                                 <div class="absolute inset-0 opacity-0 group-hover:opacity-100 bg-white/20 transition-opacity"></div>
                             </div>
-                            <span class="text-[9px] font-medium text-gray-500 mt-2 truncate w-full text-center">{{ $day }}</span>
+                            <span class="text-[9px] font-medium text-gray-500 mt-2 truncate w-full text-center">{{ $bar['label'] }}</span>
                         </div>
                     @empty
                         <div class="w-full flex items-center justify-center text-gray-400 text-sm py-12">
@@ -764,34 +711,22 @@
             </div>
             
             <div class="mt-4">
-                @php
-                    $maxFY = !empty($salesCurrentFY) ? (max(array_values($salesCurrentFY)) ?: 1) : 1;
-                    $cumulativeFY = 0;
-                    $cumulativeData = [];
-                    foreach($salesCurrentFY as $month => $amount) {
-                        $cumulativeFY += $amount;
-                        $cumulativeData[$month] = $cumulativeFY;
-                    }
-                @endphp
+                {{-- $fyBars, $cumulativeData, $cumulativeFY and $points are prepared in Dashboard::render() --}}
                 
                 <!-- Monthly Bars -->
                 <div class="mb-6">
                     <p class="text-xs font-semibold text-gray-500 mb-3">Monthly Performance</p>
                     <div class="flex items-end justify-between gap-1.5 h-48 px-1 font-sans">
-                        @forelse($salesCurrentFY as $month => $amount)
-                            @php
-                                $heightPercent = ($amount / $maxFY) * 100;
-                                $heightPercent = max($heightPercent, 4);
-                            @endphp
+                        @forelse($fyBars as $bar)
                             <div class="flex flex-col items-center flex-1 group min-w-0">
                                 <span class="text-[9px] font-bold font-mono text-emerald-600 mb-1 opacity-0 group-hover:opacity-100 transition duration-150 whitespace-nowrap">
-                                    Rp{{ number_format($amount/1000000, 1) }}M
+                                    Rp{{ number_format($bar['amount']/1000000, 1) }}M
                                 </span>
                                 <div
                                     class="w-full bg-gradient-to-t from-emerald-500 to-emerald-400 rounded-t transition-all duration-200 ease-in-out cursor-pointer hover:from-emerald-600 hover:to-emerald-500"
-                                    style="height: {{ $heightPercent }}%;"
+                                    style="height: {{ $bar['height'] }}%;"
                                 ></div>
-                                <span class="text-[9px] font-medium text-gray-500 mt-2 truncate w-full text-center">{{ $month }}</span>
+                                <span class="text-[9px] font-medium text-gray-500 mt-2 truncate w-full text-center">{{ $bar['label'] }}</span>
                             </div>
                         @empty
                             <div class="w-full flex items-center justify-center text-gray-400 text-sm py-12">
@@ -805,22 +740,10 @@
                 @if(!empty($salesCurrentFY))
                 <div class="pt-3 border-t border-gray-100">
                     <p class="text-xs font-semibold text-gray-500 mb-3">Cumulative YTD Performance</p>
-                    @php
-                        $maxCumulative = max($cumulativeData) ?: 1;
-                    @endphp
+                    
                     <div class="relative h-24 mb-2">
                         <svg class="w-full h-full" viewBox="0 0 {{ count($cumulativeData) * 40 }} 100" preserveAspectRatio="none">
-                            @php
-                                $points = [];
-                                $i = 0;
-                                $totalMonths = count($cumulativeData);
-                                foreach($cumulativeData as $value) {
-                                    $x = ($i / ($totalMonths - 1)) * 100;
-                                    $y = 100 - (($value / $maxCumulative) * 90);
-                                    $points[] = "{$x},{$y}";
-                                    $i++;
-                                }
-                            @endphp
+                            
                             @if(count($points) > 1)
                                 <polyline points="{{ implode(' ', $points) }}" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                 <polyline points="{{ implode(' ', $points) }}" fill="none" stroke="#10b981" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" class="opacity-20"/>
@@ -876,17 +799,7 @@
                             <td class="py-3 px-4">{{ $sale->sale_date }}</td>
                             <td class="py-3 px-4">Rp {{ number_format($sale->grand_total, 0, ',', '.') }}</td>
                             <td class="py-3 px-4">
-                                @php
-                                $badgeClass = match($sale->status) {
-                                    'draft'     => 'bg-gray-100 text-gray-700',
-                                    'confirmed' => 'bg-blue-100 text-blue-700',
-                                    'shipped'   => 'bg-amber-100 text-amber-700',
-                                    'delivered' => 'bg-emerald-100 text-emerald-700',
-                                    'cancelled' => 'bg-red-100 text-red-700',
-                                    default     => 'bg-gray-100 text-gray-500',
-                                };
-                                @endphp
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $badgeClass }}">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $sale->badge_class }}">
                                     {{ ucfirst($sale->status) }}
                                 </span>
                             </td>
@@ -985,20 +898,14 @@
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 class="text-lg font-bold text-gray-900 font-display mb-4">Distribusi Produk per Kategori</h3>
                 <div class="space-y-4 font-sans text-sm">
-                    @php
-                        $maxProducts = $subDashboardData['categoryDist']->max('products_count') ?: 1;
-                    @endphp
                     @forelse($subDashboardData['categoryDist'] as $cat)
-                        @php
-                            $percentage = ($cat->products_count / $maxProducts) * 100;
-                        @endphp
                         <div>
                             <div class="flex justify-between text-xs font-semibold text-gray-600 mb-1">
                                 <span>{{ $cat->name }}</span>
                                 <span class="font-mono text-gray-900">{{ $cat->products_count }} produk</span>
                             </div>
                             <div class="w-full bg-gray-100 rounded-full h-2">
-                                <div class="bg-blue-650 h-2 rounded-full" style="width: {{ $percentage }}%"></div>
+                                <div class="bg-blue-650 h-2 rounded-full" style="width: {{ $cat->percentage }}%"></div>
                             </div>
                         </div>
                     @empty
@@ -1042,34 +949,16 @@
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 class="text-lg font-bold text-gray-900 font-display mb-4">CRM Leads Funnel</h3>
                 <div class="space-y-3 font-sans text-sm">
-                    @php
-                        $pipelineStages = ['new' => 'New', 'contacted' => 'Contacted', 'qualified' => 'Qualified', 'won' => 'Won', 'lost' => 'Lost'];
-                        $maxLeadsCount = max(array_map(fn($l) => $l['count'] ?? 0, $subDashboardData['leadsByStatus']->toArray())) ?: 1;
-                    @endphp
-                    @foreach($pipelineStages as $statusKey => $statusLabel)
-                        @php
-                            $leadStat = $subDashboardData['leadsByStatus'][$statusKey] ?? null;
-                            $count = $leadStat ? $leadStat->count : 0;
-                            $revenue = $leadStat ? $leadStat->total_rev : 0;
-                            $pct = ($count / $maxLeadsCount) * 100;
-                            $bgClass = match($statusKey) {
-                                'new' => 'bg-blue-500',
-                                'contacted' => 'bg-indigo-500',
-                                'qualified' => 'bg-purple-500',
-                                'won' => 'bg-emerald-500',
-                                'lost' => 'bg-rose-500',
-                                default => 'bg-gray-500'
-                            };
-                        @endphp
+                    @foreach($subDashboardData['pipeline'] as $stage)
                         <div>
                             <div class="flex justify-between text-xs font-semibold text-gray-600 mb-1">
-                                <span>{{ $statusLabel }}</span>
+                                <span>{{ $stage['label'] }}</span>
                                 <span class="font-mono text-gray-900">
-                                    {{ $count }} leads (Rp {{ number_format($revenue, 0, ',', '.') }})
+                                    {{ $stage['count'] }} leads (Rp {{ number_format($stage['revenue'], 0, ',', '.') }})
                                 </span>
                             </div>
                             <div class="w-full bg-gray-100 rounded-full h-2.5">
-                                <div class="{{ $bgClass }} h-2.5 rounded-full" style="width: {{ $pct }}%"></div>
+                                <div class="{{ $stage['bg'] }} h-2.5 rounded-full" style="width: {{ $stage['pct'] }}%"></div>
                             </div>
                         </div>
                     @endforeach
@@ -1131,21 +1020,9 @@
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 class="text-lg font-bold text-gray-900 font-display mb-4">Status Perintah Produksi (Work Orders)</h3>
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    @php
-                        $mrpStatuses = [
-                            'draft' => ['label' => 'Draft', 'bg' => 'bg-gray-50 border-gray-200 text-gray-800'],
-                            'planned' => ['label' => 'Planned', 'bg' => 'bg-blue-50 border-blue-200 text-blue-850'],
-                            'in_progress' => ['label' => 'In Progress', 'bg' => 'bg-amber-50 border-amber-200 text-amber-850'],
-                            'completed' => ['label' => 'Completed', 'bg' => 'bg-emerald-50 border-emerald-200 text-emerald-850'],
-                            'cancelled' => ['label' => 'Cancelled', 'bg' => 'bg-red-50 border-red-200 text-red-850'],
-                        ];
-                    @endphp
-                    @foreach($mrpStatuses as $key => $style)
-                        @php
-                            $count = $subDashboardData['prodOrdersByStatus'][$key]->count ?? 0;
-                        @endphp
+                    @foreach($subDashboardData['prodStatusCards'] as $style)
                         <div class="border rounded-xl p-4 text-center {{ $style['bg'] }}">
-                            <div class="text-3xl font-extrabold font-mono">{{ $count }}</div>
+                            <div class="text-3xl font-extrabold font-mono">{{ $style['count'] }}</div>
                             <div class="text-xs font-bold uppercase tracking-wider mt-1">{{ $style['label'] }}</div>
                         </div>
                     @endforeach
@@ -1248,20 +1125,14 @@
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 class="text-lg font-bold text-gray-900 font-display mb-4">Jumlah Stok per Gudang</h3>
                 <div class="space-y-4 font-sans text-sm">
-                    @php
-                        $maxStockInWarehouse = $subDashboardData['valuationByWarehouse']->max('total_qty') ?: 1;
-                    @endphp
                     @forelse($subDashboardData['valuationByWarehouse'] as $wh)
-                        @php
-                            $percentage = ($wh->total_qty / $maxStockInWarehouse) * 100;
-                        @endphp
                         <div>
                             <div class="flex justify-between text-xs font-semibold text-gray-600 mb-1">
                                 <span>{{ $wh->warehouse->name ?? 'Gudang Utama' }}</span>
                                 <span class="font-mono text-gray-900">{{ number_format($wh->total_qty) }} pcs</span>
                             </div>
                             <div class="w-full bg-gray-100 rounded-full h-2">
-                                <div class="bg-emerald-500 h-2 rounded-full" style="width: {{ $percentage }}%"></div>
+                                <div class="bg-emerald-500 h-2 rounded-full" style="width: {{ $wh->percentage }}%"></div>
                             </div>
                         </div>
                     @empty
@@ -1347,18 +1218,7 @@
                                     </td>
                                     <td class="py-3 px-4 text-gray-600">{{ $appl->jobPosition->title ?? 'Umum' }}</td>
                                     <td class="py-3 px-4 text-center">
-                                        @php
-                                            $appBadge = match($appl->status) {
-                                                'applied' => 'bg-blue-100 text-blue-800',
-                                                'screening' => 'bg-indigo-100 text-indigo-850',
-                                                'interview' => 'bg-amber-100 text-amber-850',
-                                                'offered' => 'bg-purple-100 text-purple-850',
-                                                'hired' => 'bg-emerald-100 text-emerald-850',
-                                                'rejected' => 'bg-red-100 text-red-850',
-                                                default => 'bg-gray-100 text-gray-800'
-                                            };
-                                        @endphp
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase {{ $appBadge }}">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase {{ $appl->badge_class }}">
                                             {{ $appl->status }}
                                         </span>
                                     </td>

@@ -1,0 +1,42 @@
+on:
+  push:
+    branches:
+      - main
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+name: 🚀 Deploy website on push
+jobs:
+  web-deploy:
+    name: 🧑‍💻 Deploy
+    runs-on: ubuntu-latest
+    steps:
+    - name: 📨 Get latest code
+      uses: actions/checkout@v4
+
+    - name: 🗃️ Sync files
+      uses: SamKirkland/FTP-Deploy-Action@v4.4.0
+      with:
+        server: ${{ secrets.FTP_HOST }}
+        port: ${{ secrets.FTP_PORT }}
+        protocol: ftps
+        server-dir: ${{ secrets.FTP_DIR }}
+        username: ${{ secrets.FTP_USER }}
+        password: ${{ secrets.FTP_PASS }}
+        timeout: 120000
+        security: loose
+        dangerous-clean-slate: false
+        exclude: |
+          **/.git*
+          **/.git*/**
+          .github/**
+          .env*
+          node_modules/**
+          vendor/**
+          storage/logs/**
+          storage/framework/cache/**
+          storage/framework/sessions/**
+          storage/framework/views/**
+          media/**
+          assets/uploads/**

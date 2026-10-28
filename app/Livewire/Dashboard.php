@@ -4,9 +4,14 @@ namespace App\Livewire;
 
 use Livewire\Component;
 use App\Models\Sale;
+use App\Models\SaleItem;
 use App\Models\Purchase;
 use App\Models\StockItem;
 use App\Models\Warehouse;
+use App\Models\Product;
+use App\Models\ProductCategory;
+use App\Models\Customer;
+use App\Models\Supplier;
 use App\Models\Employee;
 use App\Models\Attendance;
 use App\Models\AttendanceSetting;
@@ -14,7 +19,21 @@ use App\Models\ActivityLog;
 use App\Models\DeliveryOrder;
 use App\Models\Approval;
 use App\Models\EmployeeSchedule;
+use App\Models\Lead;
+use App\Models\SalesOrder;
+use App\Models\SalesOrderItem;
+use App\Models\SalesQuotation;
+use App\Models\ProductionOrder;
+use App\Models\ProductionSchedule;
+use App\Models\Bom;
+use App\Models\StockValuation;
+use App\Models\GoodReceipt;
+use App\Models\WarehouseTransfer;
+use App\Models\Applicant;
+use App\Models\JobPosition;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class Dashboard extends Component
@@ -98,10 +117,6 @@ class Dashboard extends Component
         }
     }
 
-    // ──────────────────────────────────────────────────────────────────
-    // Attendance Clock-In / Clock-Out
-    // ──────────────────────────────────────────────────────────────────
-
     public function clockIn($latitude, $longitude, $address = '')
     {
         if (!Auth::check()) {
@@ -139,13 +154,10 @@ class Dashboard extends Component
             try {
                 $workStartTime = $setting->work_start_time ?? $setting->work_start ?? '08:00:00';
                 $workStart = $this->parseWorkTime($workStartTime);
-
                 $earlyMinutes = $setting->early_checkin_minutes ?? $setting->early_checkin ?? 60;
                 $earlyLimit = $workStart->copy()->subMinutes((int)$earlyMinutes);
-
                 $lateMinutes = $setting->late_tolerance_minutes ?? $setting->late_tolerance ?? 15;
                 $lateLimit = $workStart->copy()->addMinutes((int)$lateMinutes);
-
                 $now = Carbon::now();
 
                 if ($now->lt($earlyLimit)) {
@@ -180,7 +192,7 @@ class Dashboard extends Component
                     return;
                 }
             } catch (\Exception $e) {
-                \Log::error('Clock-in time parsing error: ' . $e->getMessage());
+                Log::error('Clock-in time parsing error: ' . $e->getMessage());
             }
         }
 
@@ -222,7 +234,6 @@ class Dashboard extends Component
         $employee = Employee::findOrFail($this->currentEmployeeId);
         $today = now()->format('Y-m-d');
         $currentTime = now()->format('H:i:s');
-
         $attendance = Attendance::where('employee_id', $this->currentEmployeeId)
             ->where('date', $today)->first();
 
@@ -305,13 +316,10 @@ class Dashboard extends Component
     protected function getDateRange(): array
     {
         $now = Carbon::now();
-
-        // Financial year: April 1 – March 31
         $currentFYStart = $now->month >= 4
             ? Carbon::create($now->year, 4, 1)->startOfDay()
             : Carbon::create($now->year - 1, 4, 1)->startOfDay();
         $currentFYEnd = $currentFYStart->copy()->addYear()->subDay()->endOfDay();
-
         $lastFYStart = $currentFYStart->copy()->subYear();
         $lastFYEnd   = $currentFYStart->copy()->subDay()->endOfDay();
 
@@ -334,8 +342,6 @@ class Dashboard extends Component
             default              => [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()],
         };
     }
-
-    // Human-readable label for current range
     public function getDateLabelProperty(): string
     {
         [$start, $end] = $this->getDateRange();
@@ -356,14 +362,12 @@ class Dashboard extends Component
         return $labels[$this->datePreset] ?? 'Custom Range';
     }
 
-    // Build 6-bar trend aligned to selected range
     protected function buildTrend(Carbon $start, Carbon $end): array
     {
         $diff   = $start->diffInDays($end);
         $trend  = [];
 
         if ($diff <= 14) {
-            // Day-by-day for short ranges
             $cursor = $start->copy();
             while ($cursor->lte($end)) {
                 $label = $cursor->format('d M');
@@ -372,7 +376,6 @@ class Dashboard extends Component
                 if (count($trend) >= 7) break; // cap at 7 bars
             }
         } elseif ($diff <= 92) {
-            // Week buckets
             $cursor = $start->copy()->startOfWeek();
             for ($i = 0; $i < 6; $i++) {
                 $wStart = $cursor->copy();
@@ -383,7 +386,6 @@ class Dashboard extends Component
                 if ($cursor->gt($end)) break;
             }
         } else {
-            // Month buckets (6 bars)
             for ($i = 5; $i >= 0; $i--) {
                 $date  = $end->copy()->subMonths($i);
                 $label = $date->format('M y');
@@ -432,6 +434,58 @@ class Dashboard extends Component
         return $data;
     }
 
+    /**
+     * Build chart bars (label, amount, height %, weekend flag) from a label => amount map.
+     */
+    private function buildBars(array $data, bool $detectWeekend = false): array
+    {
+        $max  = !empty($data) ? (max(array_values($data)) ?: 1) : 1;
+        $bars = [];
+        foreach ($data as $label => $amount) {
+            $bars[] = [
+                'label'   => $label,
+                'amount'  => $amount,
+                'height'  => max(($amount / $max) * 100, 4),
+                'weekend' => $detectWeekend && in_array(Carbon::parse($label)->dayOfWeek, [0, 6]),
+            ];
+        }
+        return $bars;
+    }
+
+    /**
+     * Attach a relative `percentage` (0-100) to every item based on the max of $field.
+     */
+    private function withPercentage($items, string $field)
+    {
+        $max = $items->max($field) ?: 1;
+        return $items->each(fn ($item) => $item->percentage = ($item->{$field} / $max) * 100);
+    }
+
+    private function saleBadgeClass(?string $status): string
+    {
+        return match ($status) {
+            'draft'     => 'bg-gray-100 text-gray-700',
+            'confirmed' => 'bg-blue-100 text-blue-700',
+            'shipped'   => 'bg-amber-100 text-amber-700',
+            'delivered' => 'bg-emerald-100 text-emerald-700',
+            'cancelled' => 'bg-red-100 text-red-700',
+            default     => 'bg-gray-100 text-gray-500',
+        };
+    }
+
+    private function applicantBadgeClass(?string $status): string
+    {
+        return match ($status) {
+            'applied'   => 'bg-blue-100 text-blue-800',
+            'screening' => 'bg-indigo-100 text-indigo-850',
+            'interview' => 'bg-amber-100 text-amber-850',
+            'offered'   => 'bg-purple-100 text-purple-850',
+            'hired'     => 'bg-emerald-100 text-emerald-850',
+            'rejected'  => 'bg-red-100 text-red-850',
+            default     => 'bg-gray-100 text-gray-800',
+        };
+    }
+
     public function render()
     {
         $user = Auth::user() ?? (object)['role' => 'admin'];
@@ -449,7 +503,8 @@ class Dashboard extends Component
             ->whereBetween('sale_date', [$start->toDateString(), $end->toDateString()])
             ->orderBy('sale_date', 'desc')
             ->take(5)
-            ->get();
+            ->get()
+            ->each(fn ($sale) => $sale->badge_class = $this->saleBadgeClass($sale->status));
 
         // ── Attendance data ──────────────────────────────────────────
         $today = now()->format('Y-m-d');
@@ -481,55 +536,112 @@ class Dashboard extends Component
 
         if ($this->activeTab === 'master_data') {
             $subDashboardData = [
-                'totalProducts' => \App\Models\Product::count(),
-                'totalCategories' => \App\Models\ProductCategory::count(),
-                'totalCustomers' => \App\Models\Customer::count(),
-                'totalSuppliers' => \App\Models\Supplier::count(),
-                'totalWarehouses' => \App\Models\Warehouse::count(),
-                'topProducts' => \App\Models\Product::with('category')->orderBy('price', 'desc')->take(5)->get(),
-                'categoryDist' => \App\Models\ProductCategory::withCount('products')->orderBy('products_count', 'desc')->take(6)->get(),
+                'totalProducts' => Product::count(),
+                'totalCategories' => ProductCategory::count(),
+                'totalCustomers' => Customer::count(),
+                'totalSuppliers' => Supplier::count(),
+                'totalWarehouses' => Warehouse::count(),
+                'topProducts' => Product::with('category')->orderBy('price', 'desc')->take(5)->get(),
+                'categoryDist' => $this->withPercentage(
+                    ProductCategory::withCount('products')->orderBy('products_count', 'desc')->take(6)->get(),
+                    'products_count'
+                ),
             ];
         } elseif ($this->activeTab === 'sales_workflow') {
             // CRM lead distribution
-            $leadsByStatus = \App\Models\Lead::select('status', \DB::raw('count(*) as count'), \DB::raw('sum(expected_revenue) as total_rev'))
+            $leadsByStatus = Lead::select('status', DB::raw('count(*) as count'), DB::raw('sum(expected_revenue) as total_rev'))
                 ->groupBy('status')
                 ->get()
                 ->keyBy('status');
 
             // Sales Orders by status
-            $ordersByStatus = \App\Models\SalesOrder::select('status', \DB::raw('count(*) as count'))
+            $ordersByStatus = SalesOrder::select('status', DB::raw('count(*) as count'))
                 ->groupBy('status')
                 ->get()
                 ->keyBy('status');
 
             // Top selling products by sale volume
-            $topSelling = \App\Models\SaleItem::whereNotNull('product_id')
-                ->select('product_id', \DB::raw('sum(quantity) as qty'), \DB::raw('sum(total_price) as total'))
+            $topSelling = SaleItem::whereNotNull('product_id')
+                ->select('product_id', DB::raw('sum(quantity) as qty'), DB::raw('sum(total_price) as total'))
                 ->with('product')
                 ->groupBy('product_id')
                 ->orderBy('qty', 'desc')
                 ->take(5)
                 ->get();
 
+            $quotationsQuery = SalesQuotation::where(function ($q) use ($startDateStr, $endDateStr) {
+                $q->whereBetween('quotation_date', [$startDateStr, $endDateStr])
+                  ->orWhere(function ($sub) use ($startDateStr, $endDateStr) {
+                      $sub->whereNull('quotation_date')
+                          ->whereBetween('created_at', [$startDateStr, $endDateStr]);
+                  });
+            });
+
+            $totalQuotations = (clone $quotationsQuery)->count();
+            $totalQuotationsValue = (clone $quotationsQuery)->with('items')->get()->sum(function ($sq) {
+                return floatval($sq->grand_total > 0 ? $sq->grand_total : $sq->items->sum('subtotal'));
+            });
+
+            $totalOrders = SalesOrder::whereBetween('order_date', [$startDateStr, $endDateStr])->count();
+            $totalOrdersValue = (float) SalesOrderItem::whereHas('salesOrder', function ($q) use ($startDateStr, $endDateStr) {
+                $q->whereBetween('order_date', [$startDateStr, $endDateStr]);
+            })->sum('subtotal');
+
+            // CRM funnel: one row per stage with count, revenue, bar width and colour
+            $maxLeadsCount = (int) $leadsByStatus->max('count') ?: 1;
+            $pipeline = [];
+            foreach ([
+                'new'       => ['New', 'bg-blue-500'],
+                'contacted' => ['Contacted', 'bg-indigo-500'],
+                'qualified' => ['Qualified', 'bg-purple-500'],
+                'won'       => ['Won', 'bg-emerald-500'],
+                'lost'      => ['Lost', 'bg-rose-500'],
+            ] as $key => [$label, $bg]) {
+                $count = $leadsByStatus[$key]->count ?? 0;
+                $pipeline[] = [
+                    'label'   => $label,
+                    'count'   => $count,
+                    'revenue' => $leadsByStatus[$key]->total_rev ?? 0,
+                    'pct'     => ($count / $maxLeadsCount) * 100,
+                    'bg'      => $bg,
+                ];
+            }
+
             $subDashboardData = [
-                'totalQuotations' => \App\Models\SalesQuotation::whereBetween('quotation_date', [$startDateStr, $endDateStr])->count(),
-                'totalQuotationsValue' => \App\Models\SalesQuotation::whereBetween('quotation_date', [$startDateStr, $endDateStr])->sum('grand_total'),
-                'totalOrders' => \App\Models\SalesOrder::whereBetween('order_date', [$startDateStr, $endDateStr])->count(),
-                'totalOrdersValue' => \App\Models\SalesOrder::whereBetween('order_date', [$startDateStr, $endDateStr])->sum('grand_total'),
+                'totalQuotations' => $totalQuotations,
+                'totalQuotationsValue' => $totalQuotationsValue,
+                'totalOrders' => $totalOrders,
+                'totalOrdersValue' => $totalOrdersValue,
                 'leadsByStatus' => $leadsByStatus,
+                'pipeline' => $pipeline,
                 'ordersByStatus' => $ordersByStatus,
                 'topSelling' => $topSelling,
-                'totalLeads' => \App\Models\Lead::count(),
-                'totalExpectedRevenue' => \App\Models\Lead::sum('expected_revenue'),
+                'totalLeads' => Lead::count(),
+                'totalExpectedRevenue' => Lead::sum('expected_revenue'),
             ];
         } elseif ($this->activeTab === 'manufacturing') {
-            $prodOrdersByStatus = \App\Models\ProductionOrder::select('status', \DB::raw('count(*) as count'))
+            $prodOrdersByStatus = ProductionOrder::select('status', DB::raw('count(*) as count'))
                 ->groupBy('status')
                 ->get()
                 ->keyBy('status');
 
+            $prodStatusCards = [];
+            foreach ([
+                'draft'       => ['Draft', 'bg-gray-50 border-gray-200 text-gray-800'],
+                'planned'     => ['Planned', 'bg-blue-50 border-blue-200 text-blue-850'],
+                'in_progress' => ['In Progress', 'bg-amber-50 border-amber-200 text-amber-850'],
+                'completed'   => ['Completed', 'bg-emerald-50 border-emerald-200 text-emerald-850'],
+                'cancelled'   => ['Cancelled', 'bg-red-50 border-red-200 text-red-850'],
+            ] as $key => [$label, $bg]) {
+                $prodStatusCards[] = [
+                    'label' => $label,
+                    'bg'    => $bg,
+                    'count' => $prodOrdersByStatus[$key]->count ?? 0,
+                ];
+            }
+
             // Highest BOM Costs
-            $topBoms = \App\Models\Bom::with(['product', 'items.component'])
+            $topBoms = Bom::with(['product', 'items.component'])
                 ->take(5)
                 ->get()
                 ->map(function ($bom) {
@@ -544,67 +656,128 @@ class Dashboard extends Component
                 ->sortByDesc('total_cost');
 
             $subDashboardData = [
-                'totalBoms' => \App\Models\Bom::count(),
-                'totalProdOrders' => \App\Models\ProductionOrder::count(),
+                'totalBoms' => Bom::count(),
+                'totalProdOrders' => ProductionOrder::count(),
                 'prodOrdersByStatus' => $prodOrdersByStatus,
-                'activeSchedules' => \App\Models\ProductionSchedule::where('status', 'scheduled')->count(),
+                'prodStatusCards' => $prodStatusCards,
+                'activeSchedules' => ProductionSchedule::where('planned_production', '>', 0)->count(),
                 'topBoms' => $topBoms,
-                'recentProdOrders' => \App\Models\ProductionOrder::with('product')
+                'recentProdOrders' => ProductionOrder::with('product')
                     ->orderBy('created_at', 'desc')
                     ->take(5)
                     ->get(),
             ];
         } elseif ($this->activeTab === 'warehouse_stock') {
             // Low stock items
-            $lowStock = \App\Models\StockItem::with(['product', 'warehouse'])
+            $lowStock = StockItem::with(['product', 'warehouse'])
                 ->where('qty_on_hand', '<', 15)
                 ->orderBy('qty_on_hand', 'asc')
                 ->take(5)
                 ->get();
 
             // Total valuation by warehouse
-            $valuationByWarehouse = \App\Models\StockItem::select('warehouse_id', \DB::raw('sum(qty_on_hand) as total_qty'))
-                ->with('warehouse')
-                ->groupBy('warehouse_id')
-                ->get();
+            $valuationByWarehouse = $this->withPercentage(
+                StockItem::select('warehouse_id', DB::raw('sum(qty_on_hand) as total_qty'))
+                    ->with('warehouse')
+                    ->groupBy('warehouse_id')
+                    ->get(),
+                'total_qty'
+            );
 
             $subDashboardData = [
-                'totalStockQty' => \App\Models\StockItem::sum('qty_on_hand') ?? 0,
-                'totalValuation' => \App\Models\StockValuation::sum('total_value') ?? 0,
-                'pendingReceipts' => \App\Models\GoodReceipt::where('status', 'draft')->count(),
-                'pendingTransfers' => \App\Models\WarehouseTransfer::whereIn('status', ['draft', 'ready'])->count(),
+                'totalStockQty' => StockItem::sum('qty_on_hand') ?? 0,
+                'totalValuation' => StockValuation::sum('total_value') ?? 0,
+                'pendingReceipts' => GoodReceipt::where('status', 'draft')->count(),
+                'pendingTransfers' => WarehouseTransfer::whereIn('status', ['draft', 'ready'])->count(),
                 'lowStock' => $lowStock,
                 'valuationByWarehouse' => $valuationByWarehouse,
-                'deliveryOrdersByStatus' => \App\Models\DeliveryOrder::select('status', \DB::raw('count(*) as count'))
+                'deliveryOrdersByStatus' => DeliveryOrder::select('status', DB::raw('count(*) as count'))
                     ->groupBy('status')
                     ->get()
                     ->keyBy('status'),
             ];
         } elseif ($this->activeTab === 'hr_recruitment') {
             // Department Headcount
-            $deptHeadcount = \App\Models\Employee::select('department', \DB::raw('count(*) as count'), \DB::raw('sum(salary) as total_salary'))
+            $deptHeadcount = Employee::select('department', DB::raw('count(*) as count'), DB::raw('sum(salary) as total_salary'))
                 ->groupBy('department')
                 ->get();
 
             // ATS Applicants by Status
-            $applicantsByStatus = \App\Models\Applicant::select('status', \DB::raw('count(*) as count'))
+            $applicantsByStatus = Applicant::select('status', DB::raw('count(*) as count'))
                 ->groupBy('status')
                 ->get()
                 ->keyBy('status');
 
             $subDashboardData = [
-                'totalEmployees' => \App\Models\Employee::count(),
-                'activeEmployees' => \App\Models\Employee::where('status', 'active')->count(),
-                'totalMonthlyPayroll' => \App\Models\Employee::where('status', 'active')->sum('salary'),
-                'totalApplicants' => \App\Models\Applicant::count(),
-                'activeJobOpenings' => \App\Models\JobPosition::where('status', 'active')->count(),
+                'totalEmployees' => Employee::count(),
+                'activeEmployees' => Employee::where('status', 'active')->count(),
+                'totalMonthlyPayroll' => Employee::where('status', 'active')->sum('salary'),
+                'totalApplicants' => Applicant::count(),
+                'activeJobOpenings' => JobPosition::where('status', 'active')->count(),
                 'deptHeadcount' => $deptHeadcount,
                 'applicantsByStatus' => $applicantsByStatus,
-                'recentApplicants' => \App\Models\Applicant::with('jobPosition')
+                'recentApplicants' => Applicant::with('jobPosition')
                     ->orderBy('created_at', 'desc')
                     ->take(5)
-                    ->get(),
+                    ->get()
+                    ->each(fn ($appl) => $appl->badge_class = $this->applicantBadgeClass($appl->status)),
             ];
+        }
+
+        $presetGroups = [
+            'Quick' => [
+                'today'        => 'Today',
+                'yesterday'    => 'Yesterday',
+                'last_7_days'  => 'Last 7 Days',
+                'last_30_days' => 'Last 30 Days',
+            ],
+            'Monthly' => [
+                'this_month'    => 'This Month',
+                'last_month'    => 'Last Month',
+                'this_month_ly' => 'This Month Last Year',
+            ],
+            'Annual' => [
+                'this_year' => 'This Year',
+                'last_year' => 'Last Year',
+            ],
+            'Financial Year' => [
+                'current_fy' => 'Current Financial Year',
+                'last_fy'    => 'Last Financial Year',
+            ],
+        ];
+
+        $tabs = [
+            'overview' => ['label' => 'Ringkasan', 'icon' => 'M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4zM14 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2v-4z'],
+            'master_data' => ['label' => 'Master Data', 'icon' => 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01'],
+            'sales_workflow' => ['label' => 'Sales & Workflow', 'icon' => 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z'],
+            'manufacturing' => ['label' => 'Manufacturing', 'icon' => 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z'],
+            'warehouse_stock' => ['label' => 'Warehouse & Stock', 'icon' => 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4'],
+            'hr_recruitment' => ['label' => 'HR & Recruitment', 'icon' => 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a3 3 0 11-6 0 3 3 0 016 0z'],
+        ];
+
+        $canClockIn  = (bool) ($this->currentEmployee && (!$myAttendance || !$myAttendance->check_in));
+        $canClockOut = (bool) ($this->currentEmployee && $myAttendance && $myAttendance->check_in && !$myAttendance->check_out);
+
+        $salesTrend      = $this->buildTrend($start, $end);
+        $salesLast30Days = $this->salesLast30Days;
+        $salesCurrentFY  = $this->salesCurrentFY;
+
+        // Cumulative YTD line for the financial-year chart
+        $cumulativeFY   = 0;
+        $cumulativeData = [];
+        foreach ($salesCurrentFY as $month => $amount) {
+            $cumulativeFY += $amount;
+            $cumulativeData[$month] = $cumulativeFY;
+        }
+        $maxCumulative = !empty($cumulativeData) ? (max($cumulativeData) ?: 1) : 1;
+        $totalMonths   = count($cumulativeData);
+        $points        = [];
+        $i             = 0;
+        foreach ($cumulativeData as $value) {
+            $x = $totalMonths > 1 ? ($i / ($totalMonths - 1)) * 100 : 0;
+            $y = 100 - (($value / $maxCumulative) * 90);
+            $points[] = "{$x},{$y}";
+            $i++;
         }
 
         return view('livewire.dashboard', [
@@ -621,11 +794,11 @@ class Dashboard extends Component
             'pendingDeliveries'  => DeliveryOrder::whereIn('status', ['draft', 'ready'])->count(),
             'pendingApprovals'   => Approval::where('status', 'pending')->count(),
             'activeSchedules'    => EmployeeSchedule::whereDate('date', '>=', now()->toDateString())->count(),
-            'salesTrend'         => $this->buildTrend($start, $end),
+            'salesTrend'         => $salesTrend,
             'dateStart'          => $start,
             'dateEnd'            => $end,
-            'salesLast30Days'    => $this->salesLast30Days,
-            'salesCurrentFY'     => $this->salesCurrentFY,
+            'salesLast30Days'    => $salesLast30Days,
+            'salesCurrentFY'     => $salesCurrentFY,
             // Attendance data
             'attendanceSetting'  => $attendanceSetting,
             'attPresent'         => $attPresent,
@@ -635,6 +808,17 @@ class Dashboard extends Component
             'myAttendance'       => $myAttendance,
             'currentEmployee'    => $this->currentEmployee,
             'recentAttendances'  => $recentAttendances,
+            // Prepared view data (no @php needed in Blade)
+            'presetGroups'       => $presetGroups,
+            'tabs'               => $tabs,
+            'canClockIn'         => $canClockIn,
+            'canClockOut'        => $canClockOut,
+            'trendBars'          => $this->buildBars($salesTrend),
+            'last30Bars'         => $this->buildBars(array_slice($salesLast30Days, -15, 15, true), true),
+            'fyBars'             => $this->buildBars($salesCurrentFY),
+            'cumulativeData'     => $cumulativeData,
+            'cumulativeFY'       => $cumulativeFY,
+            'points'             => $points,
         ]);
     }
 }
