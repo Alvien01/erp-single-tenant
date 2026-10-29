@@ -28,4 +28,20 @@ class BudgetLine extends Model
     {
         return $this->belongsTo(Account::class);
     }
+
+    public function getRemainingAmountAttribute(): float
+    {
+        return floatval($this->planned_amount) - floatval($this->actual_amount);
+    }
+
+    public function getUsagePercentageAttribute(): float
+    {
+        $planned = floatval($this->planned_amount);
+        return $planned > 0 ? (floatval($this->actual_amount) / $planned) * 100 : 0;
+    }
+
+    public function getClampedPercentageAttribute(): float
+    {
+        return min(100, $this->usage_percentage);
+    }
 }

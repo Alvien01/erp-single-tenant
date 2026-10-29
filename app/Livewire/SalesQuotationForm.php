@@ -667,11 +667,77 @@ class SalesQuotationForm extends Component
         return $this->redirect(route('sales-quotations'), navigate: true);
     }
 
+    public function getPreviewCustomerProperty(): array
+    {
+        $selectedCustomer = ($this->customer_mode === 'select' && $this->customer_id) 
+            ? Customer::find($this->customer_id) 
+            : null;
+
+        $custName = $this->customer_mode === 'select' 
+            ? ($selectedCustomer?->name ?? '—') 
+            : ($this->customer_name ?: '—');
+
+        $custCompany = $selectedCustomer?->company_name ?? '';
+        $custAddress = $selectedCustomer?->address ?? '—';
+        $custEmail = $selectedCustomer?->email ?? '—';
+        $custPhone = $selectedCustomer?->phone ?? '—';
+        $formattedDate = $this->quotation_date ? \Carbon\Carbon::parse($this->quotation_date)->locale('id')->translatedFormat('d F Y') : now()->locale('id')->translatedFormat('d F Y');
+        $formattedValid = $this->valid_until ? \Carbon\Carbon::parse($this->valid_until)->locale('id')->translatedFormat('d F Y') : '—';
+
+        return [
+            'name' => $custName,
+            'company' => $custCompany,
+            'address' => $custAddress,
+            'email' => $custEmail,
+            'phone' => $custPhone,
+            'is_company' => ($selectedCustomer?->type ?? '') === 'company',
+            'formatted_date' => $formattedDate,
+            'formatted_valid' => $formattedValid,
+        ];
+    }
+
+    public function getPreviewItemsProperty(): array
+    {
+        $productIds = collect($this->items)->pluck('product_id')->filter()->unique();
+        $productsById = Product::whereIn('id', $productIds)->get()->keyBy('id');
+
+        $previewList = [];
+        foreach ($this->items as $i => $item) {
+            $pModel = (!empty($item['product_id'])) ? ($productsById[$item['product_id']] ?? null) : null;
+            $pName = !empty($item['is_custom']) ? ($item['product_name'] ?: 'Item Custom') : ($pModel?->name ?? ($item['product_name'] ?: '—'));
+            $itemModel = !empty($item['model']) ? $item['model'] : ($pModel?->sku ?: ($pModel?->unit ?: '—'));
+            $rowSubtotal = is_numeric($item['total'] ?? null) ? floatval($item['total']) : (floatval($item['quantity'] ?? 0) * floatval($item['unit_price'] ?? 0));
+
+            $previewList[] = [
+                'no' => $i + 1,
+                'name' => $pName,
+                'model' => $itemModel,
+                'unit_price' => floatval($item['unit_price'] ?? 0),
+                'quantity' => (int)($item['quantity'] ?? 0),
+                'subtotal' => $rowSubtotal,
+            ];
+        }
+        return $previewList;
+    }
+
+    public function getPreviewTaxLabelProperty(): string
+    {
+        return match($this->tax_type) {
+            'pph_05' => 'PPh 0,5%',
+            'ppn_12', 'ppn_11' => 'PPN 12%',
+            'none' => 'Bebas Pajak (0%)',
+            default => 'PPh 0,5%'
+        };
+    }
+
     public function render()
     {
         return view('livewire.sales-quotation-form', [
             'customers' => Customer::orderBy('name')->get(),
             'products' => Product::orderBy('name')->get(),
+            'previewCustomer' => $this->previewCustomer,
+            'previewItems' => $this->previewItems,
+            'previewTaxLabel' => $this->previewTaxLabel,
         ])->layout('layouts.app');
     }
 }

@@ -226,18 +226,14 @@
                             </div>
 
                             <!-- Total Receipt Summary -->
-                            @php
-                                $totalQty = collect($items)->sum(fn($i) => floatval($i['qty_received'] ?? 0));
-                                $totalSubtotal = collect($items)->sum(fn($i) => floatval($i['subtotal'] ?? (floatval($i['qty_received'] ?? 0) * floatval($i['unit_price'] ?? 0))));
-                            @endphp
                             <div class="mt-4 p-3 bg-blue-50/60 rounded-xl border border-blue-100 flex flex-wrap items-center justify-between gap-3">
                                 <div class="text-xs text-gray-600 font-medium">
                                     Total Items: <span class="font-bold text-gray-900">{{ count($items) }}</span> | 
-                                    Total Qty: <span class="font-bold text-gray-900">{{ number_format($totalQty, 2) }}</span>
+                                    Total Qty: <span class="font-bold text-gray-900">{{ number_format($totalReceiptQty, 2) }}</span>
                                 </div>
                                 <div class="text-right">
                                     <span class="text-xs text-gray-500 block">Total Nilai Penerimaan</span>
-                                    <span class="text-lg font-mono font-bold text-blue-700">Rp {{ number_format($totalSubtotal, 0, ',', '.') }}</span>
+                                    <span class="text-lg font-mono font-bold text-blue-700">Rp {{ number_format($totalReceiptSubtotal, 0, ',', '.') }}</span>
                                 </div>
                             </div>
                         </div>

@@ -888,6 +888,33 @@ class HRManager extends Component
             ->get()
             ->keyBy('status');
 
+        $recStatuses = [
+            'applied' => ['label' => 'Applied', 'color' => 'bg-blue-500'],
+            'screening' => ['label' => 'Screening', 'color' => 'bg-indigo-500'],
+            'interview' => ['label' => 'Interview', 'color' => 'bg-amber-500'],
+            'offered' => ['label' => 'Offered', 'color' => 'bg-purple-500'],
+            'hired' => ['label' => 'Hired', 'color' => 'bg-emerald-500'],
+            'rejected' => ['label' => 'Rejected', 'color' => 'bg-rose-500'],
+        ];
+
+        $counts = [];
+        foreach ($recStatuses as $key => $meta) {
+            $counts[$key] = isset($applicantsByStatus[$key]) ? $applicantsByStatus[$key]->count : 0;
+        }
+        $maxRec = max(array_merge([0], array_values($counts))) ?: 1;
+
+        $recruitmentFunnel = [];
+        foreach ($recStatuses as $key => $meta) {
+            $c = $counts[$key];
+            $recruitmentFunnel[] = [
+                'key' => $key,
+                'label' => $meta['label'],
+                'count' => $c,
+                'percentage' => round(($c / $maxRec) * 100, 1),
+                'color' => $meta['color'],
+            ];
+        }
+
         return [
             'totalEmployees' => $totalEmployees,
             'activeEmployees' => $activeEmployees,
@@ -908,6 +935,7 @@ class HRManager extends Component
             // Lists
             'deptHeadcount' => $deptHeadcount,
             'applicantsByStatus' => $applicantsByStatus,
+            'recruitmentFunnel' => $recruitmentFunnel,
             'recentApplicants' => \App\Models\Applicant::with('jobPosition')
                 ->orderBy('created_at', 'desc')
                 ->take(5)

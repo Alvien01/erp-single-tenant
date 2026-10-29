@@ -959,10 +959,6 @@
                     </thead>
                     <tbody class="divide-y divide-gray-200">
                         @forelse($assets as $asset)
-                            @php
-                                $totalDep = $asset->depreciations->sum('amount');
-                                $bookVal = $asset->purchase_price - $totalDep;
-                            @endphp
                             <tr class="hover:bg-gray-50 transition duration-150">
                                 <td class="py-4 px-6 font-mono text-blue-600 font-bold">{{ $asset->asset_code }}</td>
                                 <td class="py-4 px-6 font-semibold text-gray-900">{{ $asset->asset_name }}</td>
@@ -970,7 +966,7 @@
                                 <td class="py-4 px-6 text-gray-500">{{ $asset->purchase_date }}</td>
                                 <td class="py-4 px-6 text-right font-mono font-medium text-gray-900">Rp {{ number_format($asset->purchase_price, 0, ',', '.') }}</td>
                                 <td class="py-4 px-6 text-right font-mono text-gray-500">{{ $asset->useful_life_months }} bln</td>
-                                <td class="py-4 px-6 text-right font-mono font-bold text-emerald-600">Rp {{ number_format($bookVal, 0, ',', '.') }}</td>
+                                <td class="py-4 px-6 text-right font-mono font-bold text-emerald-600">Rp {{ number_format($asset->book_value, 0, ',', '.') }}</td>
                             </tr>
                         @empty
                             <tr>

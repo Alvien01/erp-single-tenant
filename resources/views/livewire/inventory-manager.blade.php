@@ -126,20 +126,14 @@
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 class="text-lg font-bold text-gray-900 font-display mb-4">Kapasitas Kuantitas per Lokasi Gudang</h3>
                 <div class="space-y-4 font-sans text-sm">
-                    @php
-                        $maxWH = $stats['valuationByWarehouse']->max('total_qty') ?: 1;
-                    @endphp
                     @forelse($stats['valuationByWarehouse'] as $wh)
-                        @php
-                            $percentage = ($wh->total_qty / $maxWH) * 100;
-                        @endphp
                         <div>
                             <div class="flex justify-between text-xs font-semibold text-gray-650 mb-1">
                                 <span>{{ $wh->warehouse->warehouse_name ?? 'Gudang Default' }}</span>
                                 <span class="font-mono text-gray-900 font-bold">{{ number_format($wh->total_qty) }} pcs</span>
                             </div>
                             <div class="w-full bg-gray-100 rounded-full h-2">
-                                <div class="bg-emerald-500 h-2 rounded-full" style="width: {{ $percentage }}%"></div>
+                                <div class="bg-emerald-500 h-2 rounded-full" style="width: {{ $wh->percentage }}%"></div>
                             </div>
                         </div>
                     @empty

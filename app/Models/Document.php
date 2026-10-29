@@ -51,4 +51,43 @@ class Document extends Model
             default => ucfirst(str_replace('_', ' ', (string) $this->status)),
         };
     }
+
+    public function getFileUrlAttribute(): ?string
+    {
+        if (!$this->file_path) {
+            return null;
+        }
+
+        if (str_starts_with($this->file_path, 'http://') || str_starts_with($this->file_path, 'https://')) {
+            return $this->file_path;
+        }
+
+        return asset('storage/' . $this->file_path);
+    }
+
+    public function getFileExtensionAttribute(): string
+    {
+        return strtoupper(pathinfo($this->file_path ?? '', PATHINFO_EXTENSION) ?: 'FILE');
+    }
+
+    public function getFileSizeHumanAttribute(): ?string
+    {
+        if (!$this->file_path || !\Illuminate\Support\Facades\Storage::disk('public')->exists($this->file_path)) {
+            return null;
+        }
+
+        $bytes = \Illuminate\Support\Facades\Storage::disk('public')->size($this->file_path);
+        if ($bytes >= 1048576) {
+            return number_format($bytes / 1048576, 1) . ' MB';
+        }
+        if ($bytes >= 1024) {
+            return number_format($bytes / 1024, 0) . ' KB';
+        }
+        return $bytes . ' B';
+    }
+
+    public function getFileExistsAttribute(): bool
+    {
+        return !empty($this->file_path) && \Illuminate\Support\Facades\Storage::disk('public')->exists($this->file_path);
+    }
 }

@@ -1,8 +1,15 @@
 @php
+    $user = auth()->user();
     $activeMenus = \App\Models\MenuSetting::getActiveRoutes();
     $menuLabels = \App\Models\MenuSetting::getMenuLabels();
-    $show = function($routeName) use ($activeMenus) {
-        return in_array($routeName, $activeMenus);
+    $show = function($routeName) use ($activeMenus, $user) {
+        if (!in_array($routeName, $activeMenus)) {
+            return false;
+        }
+        if ($user && method_exists($user, 'canAccessMenu')) {
+            return $user->canAccessMenu($routeName);
+        }
+        return true;
     };
     $label = function($routeName, $default) use ($menuLabels) {
         return $menuLabels[$routeName] ?? $default;

@@ -6,6 +6,7 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use App\Models\Company;
 use App\Models\User;
+use App\Models\MenuSetting;
 use App\Models\ActivityLog;
 use Illuminate\Support\Facades\Hash;
 
@@ -33,6 +34,7 @@ class SettingsManager extends Component
     public $user_phone;
     public $user_role = 'user';
     public $user_password;
+    public $selected_menus = [];
 
     public function mount()
     {
@@ -100,12 +102,14 @@ class SettingsManager extends Component
         $this->user_phone = '';
         $this->user_role = 'user';
         $this->user_password = '';
+        $this->selected_menus = [];
         $this->isEditMode = false;
     }
 
     public function createUser()
     {
         $this->resetUserFields();
+        $this->applyRolePreset();
         $this->isOpen = true;
     }
 
@@ -119,8 +123,93 @@ class SettingsManager extends Component
         $this->user_role = $user->role;
         $this->user_password = '';
 
+        if ($user->allowed_menus !== null) {
+            $this->selected_menus = is_array($user->allowed_menus) ? $user->allowed_menus : [];
+        } else {
+            $this->selected_menus = $user->role === 'admin'
+                ? MenuSetting::where('is_active', true)->pluck('route_name')->toArray()
+                : $this->getPresetForRole($user->role);
+        }
+
         $this->isEditMode = true;
         $this->isOpen = true;
+    }
+
+    public function updatedUserRole($value)
+    {
+        // When changing role, automatically apply the preset for convenience
+        $this->applyRolePreset();
+    }
+
+    public function applyRolePreset()
+    {
+        $this->selected_menus = $this->getPresetForRole($this->user_role);
+    }
+
+    public function selectAllMenus()
+    {
+        $this->selected_menus = MenuSetting::where('is_active', true)->pluck('route_name')->toArray();
+    }
+
+    public function deselectAllMenus()
+    {
+        $this->selected_menus = [];
+    }
+
+    public function toggleGroupMenus(string $group)
+    {
+        $groupRoutes = MenuSetting::where('is_active', true)
+            ->where('group', $group)
+            ->pluck('route_name')
+            ->toArray();
+
+        $intersect = array_intersect($groupRoutes, $this->selected_menus);
+        $allSelected = count($intersect) === count($groupRoutes);
+
+        if ($allSelected) {
+            $this->selected_menus = array_values(array_diff($this->selected_menus, $groupRoutes));
+        } else {
+            $this->selected_menus = array_values(array_unique(array_merge($this->selected_menus, $groupRoutes)));
+        }
+    }
+
+    public function getPresetForRole(string $role): array
+    {
+        $allActive = MenuSetting::where('is_active', true)->pluck('route_name')->toArray();
+
+        return match($role) {
+            'admin' => $allActive,
+            'manager' => array_values(array_intersect($allActive, [
+                'dashboard', 'products', 'categories', 'customers', 'suppliers', 'warehouses',
+                'crm', 'pos', 'pos-stores', 'pos-members', 'pos-promos', 'pos-reports',
+                'sales-quotations', 'sales-orders', 'sales', 'delivery-orders', 'returns', 'invoices',
+                'subscriptions', 'rentals', 'bom', 'production-orders', 'plm', 'advanced-manufacturing',
+                'good-receipts', 'inventory', 'stock-valuation', 'hpp-calculator', 'quality-control',
+                'barcode-scanner', 'warehouse-transfers', 'reordering-rules', 'advanced-logistics',
+                'hr', 'expenses', 'recruitment', 'appraisals', 'schedules',
+                'purchases', 'purchase-requests', 'rfqs', 'fleet', 'maintenance', 'fsm',
+                'discuss', 'documents', 'projects-manager', 'reports'
+            ])),
+            'finance' => array_values(array_intersect($allActive, [
+                'dashboard', 'customers', 'suppliers', 'sales', 'invoices', 'returns',
+                'accounting', 'cash-bank', 'accounts-receivable', 'accounts-payable',
+                'bank-reconciliation', 'taxes', 'currencies', 'budgets', 'approvals',
+                'advanced-accounting', 'purchases', 'expenses', 'reports', 'documents'
+            ])),
+            'warehouse' => array_values(array_intersect($allActive, [
+                'dashboard', 'products', 'categories', 'suppliers', 'warehouses',
+                'good-receipts', 'inventory', 'stock-valuation', 'quality-control',
+                'barcode-scanner', 'warehouse-transfers', 'reordering-rules',
+                'advanced-logistics', 'delivery-orders', 'returns', 'documents'
+            ])),
+            'hr' => array_values(array_intersect($allActive, [
+                'dashboard', 'hr', 'expenses', 'recruitment', 'appraisals',
+                'schedules', 'discuss', 'documents'
+            ])),
+            default => array_values(array_intersect($allActive, [
+                'dashboard', 'products', 'pos', 'crm', 'discuss', 'documents'
+            ])),
+        };
     }
 
     public function saveUser()
@@ -145,6 +234,7 @@ class SettingsManager extends Component
             'email' => $this->user_email,
             'role' => $this->user_role,
             'phone' => $this->user_phone ?: '',
+            'allowed_menus' => $this->user_role === 'admin' ? null : array_values(array_unique($this->selected_menus)),
         ];
 
         if ($this->user_password) {
@@ -157,7 +247,7 @@ class SettingsManager extends Component
             'user_id' => auth()->id() ?? 1,
             'module' => 'Settings',
             'action' => $this->isEditMode ? 'Update User' : 'Create User',
-            'description' => 'User ' . $this->user_name . ' has been saved.'
+            'description' => 'User ' . $this->user_name . ' has been saved with ' . ($this->user_role === 'admin' ? 'All (Admin)' : count($this->selected_menus)) . ' accessible menus.'
         ]);
 
         session()->flash('success', 'User saved successfully.');
@@ -193,8 +283,38 @@ class SettingsManager extends Component
                   ->orWhere('email', 'like', '%' . $this->search . '%');
         }
 
+        $rawMenuGroups = MenuSetting::where('is_active', true)
+            ->orderBy('group')
+            ->orderBy('sort_order')
+            ->get()
+            ->groupBy('group');
+
+        $menuGroupsData = $rawMenuGroups->map(function ($groupMenus, $groupName) {
+            $groupRoutes = $groupMenus->pluck('route_name')->toArray();
+            $intersect = array_intersect($groupRoutes, $this->selected_menus);
+            $allSelected = count($groupRoutes) > 0 && count($intersect) === count($groupRoutes);
+
+            $menus = $groupMenus->map(function ($menu) {
+                return [
+                    'route_name' => $menu->route_name,
+                    'label' => $menu->label,
+                    'is_checked' => in_array($menu->route_name, $this->selected_menus, true),
+                ];
+            });
+
+            return [
+                'group_name' => $groupName,
+                'selected_count' => count($intersect),
+                'total_count' => count($groupRoutes),
+                'all_selected' => $allSelected,
+                'menus' => $menus,
+            ];
+        });
+
         return view('livewire.settings-manager', [
             'users' => $users->orderBy('name')->paginate(10),
+            'menuGroupsData' => $menuGroupsData,
+            'totalActiveMenus' => MenuSetting::where('is_active', true)->count(),
         ]);
     }
 }

@@ -11,4 +11,14 @@ class Asset extends Model
     {
         return $this->hasMany(AssetDepreciation::class);
     }
+
+    public function getTotalDepreciationAttribute(): float
+    {
+        return floatval($this->depreciations->sum('amount'));
+    }
+
+    public function getBookValueAttribute(): float
+    {
+        return floatval($this->purchase_price) - $this->total_depreciation;
+    }
 }

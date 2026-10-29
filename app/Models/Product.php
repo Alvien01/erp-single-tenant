@@ -20,4 +20,19 @@ class Product extends Model
     {
         return $this->belongsTo(ProductCategory::class, 'category_id');
     }
+
+    public function getFirstImageUrlAttribute(): ?string
+    {
+        if (empty($this->image)) {
+            return null;
+        }
+
+        $img = is_array($this->image) ? $this->image : json_decode($this->image, true);
+        if (is_array($img) && !empty($img)) {
+            $firstImage = reset($img);
+            return asset('storage/' . $firstImage);
+        }
+
+        return null;
+    }
 }

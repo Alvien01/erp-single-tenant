@@ -260,6 +260,16 @@ class GoodReceiptManager extends Component
         $this->openModal();
     }
 
+    public function getTotalReceiptQtyProperty(): float
+    {
+        return collect($this->items)->sum(fn($i) => floatval($i['qty_received'] ?? 0));
+    }
+
+    public function getTotalReceiptSubtotalProperty(): float
+    {
+        return collect($this->items)->sum(fn($i) => floatval($i['subtotal'] ?? (floatval($i['qty_received'] ?? 0) * floatval($i['unit_price'] ?? 0))));
+    }
+
     public function render()
     {
         $query = GoodReceipt::with(['supplier', 'items.product', 'items.warehouse']);
@@ -276,6 +286,8 @@ class GoodReceiptManager extends Component
             'warehouses' => Warehouse::all(),
             'products' => Product::all(),
             'purchaseOrders' => Purchase::where('status', '!=', 'received')->get(),
+            'totalReceiptQty' => $this->totalReceiptQty,
+            'totalReceiptSubtotal' => $this->totalReceiptSubtotal,
         ]);
     }
 }

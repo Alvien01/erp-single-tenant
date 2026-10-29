@@ -72,23 +72,19 @@
                     </thead>
                     <tbody class="divide-y divide-gray-100">
                         @forelse($b->lines as $line)
-                            @php
-                                $remaining = $line->planned_amount - $line->actual_amount;
-                                $percentage = $line->planned_amount > 0 ? ($line->actual_amount / $line->planned_amount) * 100 : 0;
-                            @endphp
                             <tr class="hover:bg-gray-50">
                                 <td class="py-3 px-3 font-semibold text-gray-700">{{ $line->account->code }} - {{ $line->account->name }}</td>
                                 <td class="py-3 px-3 text-right font-mono font-medium text-gray-900">Rp {{ number_format($line->planned_amount, 0, ',', '.') }}</td>
                                 <td class="py-3 px-3 text-right font-mono font-medium text-red-600">Rp {{ number_format($line->actual_amount, 0, ',', '.') }}</td>
-                                <td class="py-3 px-3 text-right font-mono font-medium {{ $remaining >= 0 ? 'text-emerald-600' : 'text-rose-600' }}">
-                                    Rp {{ number_format($remaining, 0, ',', '.') }}
+                                <td class="py-3 px-3 text-right font-mono font-medium {{ $line->remaining_amount >= 0 ? 'text-emerald-600' : 'text-rose-600' }}">
+                                    Rp {{ number_format($line->remaining_amount, 0, ',', '.') }}
                                 </td>
                                 <td class="py-3 px-3 text-center">
                                     <div class="flex items-center justify-center space-x-2">
                                         <div class="w-24 bg-gray-200 rounded-full h-1.5">
-                                            <div class="bg-blue-600 h-1.5 rounded-full" style="width: {{ min(100, $percentage) }}%"></div>
+                                            <div class="bg-blue-600 h-1.5 rounded-full" style="width: {{ $line->clamped_percentage }}%"></div>
                                         </div>
-                                        <span class="font-mono font-bold text-gray-700">{{ number_format($percentage, 1) }}%</span>
+                                        <span class="font-mono font-bold text-gray-700">{{ number_format($line->usage_percentage, 1) }}%</span>
                                     </div>
                                 </td>
                                 @if($b->status === 'draft')

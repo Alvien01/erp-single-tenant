@@ -37,6 +37,12 @@ class CheckMenuAccess
             abort(403, 'Menu ini telah dinonaktifkan oleh administrator.');
         }
 
+        // Check user-specific menu access permission
+        $user = $request->user();
+        if ($user && $menuSetting && !$user->canAccessMenu($routeName)) {
+            abort(403, 'Akses ditolak: Akun Anda tidak memiliki izin untuk mengakses menu ' . ($menuSetting->label ?? $routeName) . '.');
+        }
+
         return $next($request);
     }
 }

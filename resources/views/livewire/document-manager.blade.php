@@ -122,13 +122,43 @@
                     @forelse($documents as $doc)
                         <tr class="hover:bg-gray-50 transition">
                             <td class="py-4 px-6">
-                                <div class="font-bold text-gray-900 flex items-center">
-                                    <svg class="w-5 h-5 mr-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-                                    </svg>
-                                    {{ $doc->name }}
+                                <div class="flex items-start space-x-3">
+                                    <div class="p-2 bg-blue-50 text-blue-600 rounded-lg flex-shrink-0 mt-0.5">
+                                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                                        </svg>
+                                    </div>
+                                    <div class="min-w-0 flex-1">
+                                        <div class="flex items-center gap-2">
+                                            @if($doc->file_url)
+                                                <a href="{{ $doc->file_url }}" target="_blank" rel="noopener noreferrer" class="font-bold text-gray-900 hover:text-blue-600 transition flex items-center gap-1.5 group" title="Buka / Preview Dokumen di Tab Baru">
+                                                    <span class="group-hover:underline truncate">{{ $doc->name }}</span>
+                                                    <svg class="w-3.5 h-3.5 text-gray-400 group-hover:text-blue-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                                    </svg>
+                                                </a>
+                                            @else
+                                                <span class="font-bold text-gray-900 truncate">{{ $doc->name }}</span>
+                                            @endif
+                                            <span class="px-1.5 py-0.5 text-[10px] font-mono font-semibold rounded bg-gray-100 text-gray-600 uppercase">{{ $doc->file_extension }}</span>
+                                        </div>
+                                        
+                                        <div class="flex items-center gap-2 mt-1 text-xs text-gray-400 font-mono">
+                                            @if($doc->file_url)
+                                                <a href="{{ $doc->file_url }}" target="_blank" class="hover:text-blue-600 truncate max-w-xs" title="URL: {{ $doc->file_url }}">
+                                                    {{ $doc->file_path }}
+                                                </a>
+                                            @else
+                                                <span class="truncate max-w-xs">{{ $doc->file_path }}</span>
+                                            @endif
+
+                                            @if($doc->file_size_human)
+                                                <span class="text-gray-300">•</span>
+                                                <span class="text-gray-500">{{ $doc->file_size_human }}</span>
+                                            @endif
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="text-xs text-gray-400 font-mono mt-0.5">{{ $doc->file_path }}</div>
                             </td>
                             <td class="py-4 px-6">
                                 <span class="px-2 py-1 text-xs rounded bg-gray-100 text-gray-700 font-semibold uppercase">{{ $doc->category }}</span>
@@ -138,25 +168,61 @@
                                     v{{ $doc->version }}
                                 </button>
                             </td>
-                            <td class="py-4 px-6 text-gray-600 font-medium">{{ $doc->creator->name }}</td>
+                            <td class="py-4 px-6 text-gray-600 font-medium">{{ $doc->creator->name ?? '-' }}</td>
                             <td class="py-4 px-6 text-center">
                                 <span class="px-2.5 py-0.5 inline-flex items-center text-xs font-semibold rounded-full border {{ $doc->status_badge_class }}">
                                     {{ $doc->status_label }}
                                 </span>
                             </td>
-                            <td class="py-4 px-6 text-right space-x-2">
+                            <td class="py-4 px-6 text-right space-x-1.5 whitespace-nowrap">
+                                @if($doc->file_url)
+                                    <a href="{{ $doc->file_url }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center px-2 py-1 text-xs font-semibold rounded bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200" title="Buka File Dokumen">
+                                        <svg class="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                        Buka File
+                                    </a>
+                                    <button wire:click="downloadDocument({{ $doc->id }})" class="inline-flex items-center px-2 py-1 text-xs font-semibold rounded bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200" title="Download File">
+                                        <svg class="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                        </svg>
+                                        Download
+                                    </button>
+                                @endif
+
                                 @if($doc->status === 'draft')
-                                    <button wire:click="markPendingSignature({{ $doc->id }})" class="text-amber-600 hover:text-amber-900 font-medium text-xs">Request Sign</button>
+                                    <button wire:click="markPendingSignature({{ $doc->id }})" class="inline-flex items-center px-2 py-1 text-xs font-semibold rounded bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200" title="Request Sign">
+                                        <svg class="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                        </svg>
+                                        Request Sign
+                                    </button>
                                 @endif
                                 
                                 @if($doc->status === 'pending_signature')
-                                    <button wire:click="openSignModal({{ $doc->id }})" class="text-emerald-600 hover:text-emerald-950 font-bold text-xs uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">E-Sign</button>
+                                    <button wire:click="openSignModal({{ $doc->id }})" class="inline-flex items-center px-2 py-1 text-xs font-semibold rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200" title="Tanda Tangan Dokumen">
+                                        <svg class="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.952 11.952 0 01-6.83 1.666L5 4.847V10.5c0 5.308 3.82 9.802 8.783 10.796A11.954 11.954 0 0021 12.5V4.847l-.382-.031z" />
+                                        </svg>
+                                        E-Sign
+                                    </button>
                                 @endif
 
                                 @if($doc->status !== 'signed')
-                                    <button wire:click="openModal({{ $doc->id }})" class="text-blue-600 hover:text-blue-900 font-medium text-xs">New Version</button>
+                                    <button wire:click="openModal({{ $doc->id }})" class="inline-flex items-center px-2 py-1 text-xs font-semibold rounded bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200" title="Upload Versi Baru">
+                                        <svg class="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                        New Version
+                                    </button>
                                 @endif
-                                <button onclick="confirm('Are you sure you want to delete this document permanently?') || event.stopImmediatePropagation()" wire:click="delete({{ $doc->id }})" class="text-red-600 hover:text-red-900 font-medium text-xs">Delete</button>
+                                <button onclick="confirm('Are you sure you want to delete this document permanently?') || event.stopImmediatePropagation()" wire:click="delete({{ $doc->id }})" class="inline-flex items-center px-2 py-1 text-xs font-semibold rounded bg-red-50 text-red-700 hover:bg-red-100 border border-red-200" title="Hapus Dokumen">
+                                    <svg class="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                    Hapus
+                                </button>
                             </td>
                         </tr>
                     @empty
@@ -204,8 +270,16 @@
                             </div>
 
                             <div>
-                                <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500">Physical File Upload</label>
-                                <input type="file" wire:model="file" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500">Physical File Upload (Storage Server)</label>
+                                <input type="file" wire:model="file" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
+                                <div wire:loading wire:target="file" class="text-xs text-blue-600 mt-1.5 flex items-center gap-1.5">
+                                    <svg class="animate-spin h-3.5 w-3.5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Mengunggah file ke server...
+                                </div>
+                                <p class="text-[11px] text-gray-400 mt-1">Mendukung file PDF, DOCX, XLSX, JPG, PNG, dll. (Maks. 10MB)</p>
                                 @error('file') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
                             </div>
 
@@ -241,14 +315,36 @@
                         <div class="divide-y divide-gray-100 max-h-80 overflow-y-auto pr-2">
                             @forelse($selectedDoc->versions as $v)
                                 <div class="py-3 flex items-center justify-between">
-                                    <div>
-                                        <div class="font-mono font-bold text-gray-800 text-sm">v{{ $v->version }}</div>
-                                        <div class="text-xs text-gray-400">{{ $v->file_path }}</div>
-                                        <div class="text-xs text-gray-500">Created by: {{ $v->creator->name }} | {{ $v->created_at->format('d M Y H:i') }}</div>
+                                    <div class="min-w-0 flex-1 mr-3">
+                                        <div class="font-mono font-bold text-gray-800 text-sm flex items-center gap-2">
+                                            <span>v{{ $v->version }}</span>
+                                            <span class="px-1.5 py-0.2 text-[9px] font-mono rounded bg-gray-100 text-gray-600 uppercase">{{ $v->file_extension }}</span>
+                                            @if($v->file_url)
+                                                <a href="{{ $v->file_url }}" target="_blank" rel="noopener noreferrer" class="text-xs text-blue-600 hover:underline font-sans font-medium inline-flex items-center gap-1">
+                                                    <span>Lihat File</span>
+                                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                                    </svg>
+                                                </a>
+                                            @endif
+                                        </div>
+                                        @if($v->file_url)
+                                            <a href="{{ $v->file_url }}" target="_blank" class="text-xs text-gray-400 hover:text-blue-600 font-mono block mt-0.5 truncate">{{ $v->file_path }}</a>
+                                        @else
+                                            <div class="text-xs text-gray-400 font-mono mt-0.5 truncate">{{ $v->file_path }}</div>
+                                        @endif
+                                        <div class="text-xs text-gray-500 mt-1">Created by: {{ $v->creator->name ?? '-' }} | {{ $v->created_at->format('d M Y H:i') }}</div>
                                     </div>
-                                    <button wire:click="restoreVersion({{ $v->id }})" class="px-2.5 py-1 text-xs font-semibold rounded bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200">
-                                        Restore
-                                    </button>
+                                    <div class="flex items-center gap-1.5 flex-shrink-0">
+                                        @if($v->file_url)
+                                            <button wire:click="downloadVersion({{ $v->id }})" class="px-2 py-1 text-xs font-semibold rounded bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200" title="Download Versi Ini">
+                                                Download
+                                            </button>
+                                        @endif
+                                        <button wire:click="restoreVersion({{ $v->id }})" class="px-2.5 py-1 text-xs font-semibold rounded bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200">
+                                            Restore
+                                        </button>
+                                    </div>
                                 </div>
                             @empty
                                 <div class="py-4 text-center text-gray-400 text-sm">No previous versions. Current version v{{ $selectedDoc->version }} is the original.</div>

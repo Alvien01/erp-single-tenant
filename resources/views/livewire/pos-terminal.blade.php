@@ -105,19 +105,8 @@
                 <div wire:click="addToCart({{ $product->id }})" class="bg-slate-800/80 hover:bg-slate-700 border border-slate-700/50 hover:border-blue-500/50 rounded-xl overflow-hidden cursor-pointer transition-all duration-200 group flex flex-col h-full">
                     <!-- Product Image / Placeholder -->
                     <div class="h-28 bg-slate-900 relative flex items-center justify-center p-2">
-                        @php
-                            $imageUrl = null;
-                            if (!empty($product->image)) {
-                                $img = is_array($product->image) ? $product->image : json_decode($product->image, true);
-                                if (is_array($img) && !empty($img)) {
-                                    $firstImage = reset($img);
-                                    $imageUrl = asset('storage/' . $firstImage);
-                                }
-                            }
-                        @endphp
-
-                        @if($imageUrl)
-                            <img src="{{ $imageUrl }}" alt="{{ $product->name }}" class="h-full object-contain group-hover:scale-105 transition-transform">
+                        @if($product->first_image_url)
+                            <img src="{{ $product->first_image_url }}" alt="{{ $product->name }}" class="h-full object-contain group-hover:scale-105 transition-transform">
                         @else
                             <div class="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-slate-500 font-display font-bold text-xl">
                                 {{ substr($product->name, 0, 1) }}
@@ -685,15 +674,7 @@
                         </div>
                         
                         <div class="text-xs text-slate-400 mb-4 line-clamp-2">
-                            Items: 
-                            @php
-                                $cartData = is_array($order->cart_data ?? null)
-                                    ? $order->cart_data
-                                    : json_decode($order->cart_data ?? '[]', true);
-                                $itemNames = is_array($cartData) ? array_column($cartData, 'name') : [];
-                                echo e(implode(', ', array_slice($itemNames, 0, 3)));
-                                if(count($itemNames) > 3) echo '...';
-                            @endphp
+                            Items: {{ $order->items_preview_text }}
                         </div>
                         
                         <div class="mt-auto flex gap-2">

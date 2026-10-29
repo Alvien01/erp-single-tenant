@@ -251,18 +251,7 @@
                                     </td>
                                     <td class="py-3 px-4 text-gray-600">{{ $appl->jobPosition->title ?? 'Umum' }}</td>
                                     <td class="py-3 px-4 text-center font-sans">
-                                        @php
-                                            $appBadge = match($appl->status) {
-                                                'applied' => 'bg-blue-100 text-blue-800',
-                                                'screening' => 'bg-indigo-100 text-indigo-800',
-                                                'interview' => 'bg-amber-100 text-amber-800',
-                                                'offered' => 'bg-purple-100 text-purple-800',
-                                                'hired' => 'bg-emerald-100 text-emerald-800',
-                                                'rejected' => 'bg-red-100 text-red-800',
-                                                default => 'bg-gray-100 text-gray-800'
-                                            };
-                                        @endphp
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase {{ $appBadge }}">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase {{ $appl->status_badge_class }}">
                                             {{ $appl->status }}
                                         </span>
                                     </td>
@@ -281,32 +270,14 @@
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 class="text-lg font-bold text-gray-900 font-display mb-4">Corong Perekrutan ATS</h3>
                 <div class="space-y-3 font-sans text-sm">
-                    @php
-                        $recStatuses = ['applied' => 'Applied', 'screening' => 'Screening', 'interview' => 'Interview', 'offered' => 'Offered', 'hired' => 'Hired', 'rejected' => 'Rejected'];
-                        $maxRec = max(array_merge([0], array_map(fn($item) => $item['count'] ?? 0, $stats['applicantsByStatus']->toArray()))) ?: 1;
-                    @endphp
-                    @foreach($recStatuses as $key => $label)
-                        @php
-                            $recStat = $stats['applicantsByStatus'][$key] ?? null;
-                            $count = $recStat ? $recStat->count : 0;
-                            $pct = ($count / $maxRec) * 100;
-                            $bgClass = match($key) {
-                                'applied' => 'bg-blue-500',
-                                'screening' => 'bg-indigo-500',
-                                'interview' => 'bg-amber-500',
-                                'offered' => 'bg-purple-500',
-                                'hired' => 'bg-emerald-500',
-                                'rejected' => 'bg-rose-500',
-                                default => 'bg-gray-500'
-                            };
-                        @endphp
+                    @foreach($stats['recruitmentFunnel'] as $funnel)
                         <div>
                             <div class="flex justify-between text-xs font-semibold text-gray-650 mb-1">
-                                <span>{{ $label }}</span>
-                                <span class="font-mono text-gray-900">{{ $count }} kandidat</span>
+                                <span>{{ $funnel['label'] }}</span>
+                                <span class="font-mono text-gray-900">{{ $funnel['count'] }} kandidat</span>
                             </div>
                             <div class="w-full bg-gray-100 rounded-full h-2">
-                                <div class="{{ $bgClass }} h-2 rounded-full" style="width: {{ $pct }}%"></div>
+                                <div class="{{ $funnel['color'] }} h-2 rounded-full" style="width: {{ $funnel['percentage'] }}%"></div>
                             </div>
                         </div>
                     @endforeach

@@ -680,15 +680,6 @@
                     </div>
 
                     <!-- Metadata & Customer Info -->
-                    @php
-                        $selectedCustomer = ($customer_mode === 'select' && $customer_id) ? \App\Models\Customer::find($customer_id) : null;
-                        $custName = $customer_mode === 'select' ? ($selectedCustomer?->name ?? '—') : ($customer_name ?: '—');
-                        $custCompany = $selectedCustomer?->company_name ?? '';
-                        $custAddress = $selectedCustomer?->address ?? '—';
-                        $custEmail = $selectedCustomer?->email ?? '—';
-                        $custPhone = $selectedCustomer?->phone ?? '—';
-                        $formattedDate = $sale_date ? \Carbon\Carbon::parse($sale_date)->locale('id')->translatedFormat('d F Y') : now()->locale('id')->translatedFormat('d F Y');
-                    @endphp
                     <table class="w-full text-xs mb-3" style="line-height: 1.5; border-collapse: collapse;">
                         <tr>
                             <td style="width: 70px;">Nomor</td>
@@ -698,7 +689,7 @@
                         <tr>
                             <td>Tanggal</td>
                             <td>:</td>
-                            <td>{{ $formattedDate }}</td>
+                            <td>{{ $previewCustomer['formatted_date'] }}</td>
                         </tr>
                         <tr>
                             <td colspan="3" class="pt-2 font-medium">Kepada Yth.</td>
@@ -707,26 +698,26 @@
                             <td>Nama</td>
                             <td>:</td>
                             <td class="font-semibold">
-                                {{ $custName }}
-                                @if(!empty($custCompany) && ($selectedCustomer?->type ?? '') === 'company')
-                                    - {{ $custCompany }}
+                                {{ $previewCustomer['name'] }}
+                                @if(!empty($previewCustomer['company']) && $previewCustomer['is_company'])
+                                    - {{ $previewCustomer['company'] }}
                                 @endif
                             </td>
                         </tr>
                         <tr>
                             <td>Alamat</td>
                             <td>:</td>
-                            <td>{{ $custAddress }}</td>
+                            <td>{{ $previewCustomer['address'] }}</td>
                         </tr>
                         <tr>
                             <td>Email</td>
                             <td>:</td>
-                            <td>{{ $custEmail }}</td>
+                            <td>{{ $previewCustomer['email'] }}</td>
                         </tr>
                         <tr>
                             <td>No. Hp</td>
                             <td>:</td>
-                            <td>{{ $custPhone }}</td>
+                            <td>{{ $previewCustomer['phone'] }}</td>
                         </tr>
                     </table>
 
@@ -743,23 +734,14 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach($items as $i => $item)
-                                @php
-                                    $pModel = null;
-                                    if (empty($item['is_custom']) && !empty($item['product_id'])) {
-                                        $pModel = \App\Models\Product::find($item['product_id']);
-                                    }
-                                    $pName = !empty($item['is_custom']) ? ($item['product_name'] ?: 'Item Custom') : ($pModel?->name ?? ($item['product_name'] ?: '—'));
-                                    $itemModel = !empty($item['model']) ? $item['model'] : ($pModel?->sku ?: ($pModel?->unit ?: '—'));
-                                    $rowSubtotal = is_numeric($item['total'] ?? null) ? floatval($item['total']) : (floatval($item['quantity'] ?? 0) * floatval($item['unit_price'] ?? 0));
-                                @endphp
+                            @foreach($previewItems as $pItem)
                                 <tr>
-                                    <td class="border border-black px-2 py-1 text-center">{{ $i + 1 }}</td>
-                                    <td class="border border-black px-2 py-1 text-left">{{ $pName }}</td>
-                                    <td class="border border-black px-2 py-1 text-center">{{ $itemModel }}</td>
-                                    <td class="border border-black px-2 py-1 text-right font-mono">Rp{{ number_format(floatval($item['unit_price'] ?? 0), 0, ',', '.') }}</td>
-                                    <td class="border border-black px-2 py-1 text-center">{{ (int)($item['quantity'] ?? 0) }}</td>
-                                    <td class="border border-black px-2 py-1 text-right font-mono">Rp{{ number_format($rowSubtotal, 0, ',', '.') }}</td>
+                                    <td class="border border-black px-2 py-1 text-center">{{ $pItem['no'] }}</td>
+                                    <td class="border border-black px-2 py-1 text-left">{{ $pItem['name'] }}</td>
+                                    <td class="border border-black px-2 py-1 text-center">{{ $pItem['model'] }}</td>
+                                    <td class="border border-black px-2 py-1 text-right font-mono">Rp{{ number_format($pItem['unit_price'], 0, ',', '.') }}</td>
+                                    <td class="border border-black px-2 py-1 text-center">{{ $pItem['quantity'] }}</td>
+                                    <td class="border border-black px-2 py-1 text-right font-mono">Rp{{ number_format($pItem['subtotal'], 0, ',', '.') }}</td>
                                 </tr>
                             @endforeach
 
@@ -776,14 +758,6 @@
                             </tr>
                             @endif
 
-                            @php
-                                $previewTaxLabel = match($tax_type) {
-                                    'pph_05' => 'PPh 0,5%',
-                                    'ppn_12', 'ppn_11' => 'PPN 12%',
-                                    'none' => 'Bebas Pajak (0%)',
-                                    default => 'PPh 0,5%'
-                                };
-                            @endphp
                             <tr>
                                 <td colspan="5" class="border border-black px-2 py-1 text-center font-bold">{{ $previewTaxLabel }}</td>
                                 <td class="border border-black px-2 py-1 text-right font-mono">Rp{{ number_format($tax_amount, 0, ',', '.') }}</td>

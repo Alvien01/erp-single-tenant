@@ -5,43 +5,41 @@ namespace App\Livewire;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
+use Livewire\Attributes\Layout;
 use App\Models\Document;
 use App\Models\DocumentVersion;
 use App\Models\ActivityLog;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
+#[Layout('layouts.app')]
 class DocumentManager extends Component
 {
     use WithFileUploads, WithPagination;
 
-    public $search = '';
-    public $category = '';
-    public $status = '';
-
-    // Upload & Form fields
-    public $document_id;
-    public $name;
-    public $doc_category = 'General';
-    public $file; // Holds uploaded file
-    public $mock_file_name; // Holds typed mock file name if no actual file uploaded
-
-    // Signature field
-    public $signature_data; // Base64 signature path
-
-    public $isOpen = false;
-    public $isSignOpen = false;
-    public $isVersionsOpen = false;
-    public $selectedDoc;
-
+    public string $search = '';
+    public string $category = '';
+    public string $status = '';
+    public ?int $document_id = null;
+    public ?string $name = null;
+    public string $doc_category = 'General';
+    public mixed $file = null;
+    public ?string $mock_file_name = null;
+    public ?string $signature_data = null;
+    public bool $isOpen = false;
+    public bool $isSignOpen = false;
+    public bool $isVersionsOpen = false;
+    public ?Document $selectedDoc = null;
     protected $queryString = ['search', 'category', 'status'];
 
-    public function updatingSearch()
+    public function updatingSearch(): void
     {
         $this->resetPage();
     }
 
-    public function openModal($id = null)
+    public function openModal(?int $id = null): void
     {
         $this->isOpen = true;
         if ($id) {
@@ -54,13 +52,13 @@ class DocumentManager extends Component
         }
     }
 
-    public function closeModal()
+    public function closeModal(): void
     {
         $this->isOpen = false;
         $this->resetFields();
     }
 
-    private function resetFields()
+    private function resetFields(): void
     {
         $this->document_id = null;
         $this->name = '';
@@ -69,7 +67,7 @@ class DocumentManager extends Component
         $this->mock_file_name = '';
     }
 
-    public function save()
+    public function save(): void
     {
         $this->validate([
             'name' => 'required|string|max:255',
@@ -136,21 +134,21 @@ class DocumentManager extends Component
         $this->closeModal();
     }
 
-    public function openSignModal($id)
+    public function openSignModal(int $id): void
     {
         $this->isSignOpen = true;
         $this->selectedDoc = Document::findOrFail($id);
         $this->signature_data = '';
     }
 
-    public function closeSignModal()
+    public function closeSignModal(): void
     {
         $this->isSignOpen = false;
         $this->selectedDoc = null;
         $this->signature_data = '';
     }
 
-    public function saveSignature()
+    public function saveSignature(): void
     {
         $this->validate([
             'signature_data' => 'required|string',
@@ -174,26 +172,26 @@ class DocumentManager extends Component
         $this->closeSignModal();
     }
 
-    public function markPendingSignature($id)
+    public function markPendingSignature(int $id): void
     {
         $doc = Document::findOrFail($id);
         $doc->update(['status' => 'pending_signature']);
         session()->flash('success', 'Document status changed to Pending Signature!');
     }
 
-    public function showVersions($id)
+    public function showVersions(int $id): void
     {
         $this->isVersionsOpen = true;
         $this->selectedDoc = Document::with('versions.creator')->findOrFail($id);
     }
 
-    public function closeVersionsModal()
+    public function closeVersionsModal(): void
     {
         $this->isVersionsOpen = false;
         $this->selectedDoc = null;
     }
 
-    public function restoreVersion($versionId)
+    public function restoreVersion(int $versionId): void
     {
         $ver = DocumentVersion::findOrFail($versionId);
         $doc = Document::findOrFail($ver->document_id);
@@ -225,19 +223,58 @@ class DocumentManager extends Component
         $this->closeVersionsModal();
     }
 
-    public function delete($id)
+    public function delete(int $id): void
+    {
+        $doc = Document::with('versions')->findOrFail($id);
+
+        // Delete physical file from storage if exists
+        if ($doc->file_path && Storage::disk('public')->exists($doc->file_path)) {
+            Storage::disk('public')->delete($doc->file_path);
+        }
+
+        // Delete physical version files
+        foreach ($doc->versions as $ver) {
+            if ($ver->file_path && Storage::disk('public')->exists($ver->file_path)) {
+                Storage::disk('public')->delete($ver->file_path);
+            }
+        }
+
+        $doc->delete();
+        session()->flash('success', 'Document and associated storage files deleted successfully!');
+    }
+
+    public function downloadDocument(int $id): ?BinaryFileResponse
     {
         $doc = Document::findOrFail($id);
-        $doc->delete();
-        session()->flash('success', 'Document deleted successfully!');
+        if ($doc->file_path && Storage::disk('public')->exists($doc->file_path)) {
+            $ext = pathinfo($doc->file_path, PATHINFO_EXTENSION);
+            $downloadName = Str::slug($doc->name) . ($ext ? '.' . $ext : '');
+            return response()->download(Storage::disk('public')->path($doc->file_path), $downloadName);
+        }
+
+        session()->flash('error', 'Physical file not found in storage server.');
+        return null;
+    }
+
+    public function downloadVersion(int $versionId): ?BinaryFileResponse
+    {
+        $ver = DocumentVersion::with('document')->findOrFail($versionId);
+        if ($ver->file_path && Storage::disk('public')->exists($ver->file_path)) {
+            $ext = pathinfo($ver->file_path, PATHINFO_EXTENSION);
+            $downloadName = Str::slug($ver->document->name ?? 'document') . '-v' . $ver->version . ($ext ? '.' . $ext : '');
+            return response()->download(Storage::disk('public')->path($ver->file_path), $downloadName);
+        }
+
+        session()->flash('error', 'Physical version file not found in storage server.');
+        return null;
     }
 
     public function render()
     {
         $query = Document::with('creator')
-            ->where(function($q) {
+            ->where(function ($q) {
                 $q->where('name', 'like', '%' . $this->search . '%')
-                  ->orWhere('category', 'like', '%' . $this->search . '%');
+                    ->orWhere('category', 'like', '%' . $this->search . '%');
             });
 
         if ($this->category) {
@@ -260,6 +297,7 @@ class DocumentManager extends Component
                 'signed' => $signedDocs,
                 'pending' => $pendingDocs,
             ]
-        ])->layout('layouts.app');
+        ]);
     }
 }
+

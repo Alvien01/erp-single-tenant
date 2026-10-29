@@ -180,6 +180,12 @@ class InventoryManager extends Component
             ->groupBy('warehouse_id')
             ->get();
 
+        $maxQty = $valuationByWarehouse->max('total_qty') ?: 1;
+        $valuationByWarehouse->transform(function ($wh) use ($maxQty) {
+            $wh->percentage = round(($wh->total_qty / $maxQty) * 100, 1);
+            return $wh;
+        });
+
         return [
             'totalStockQty' => StockItem::sum('qty_on_hand') ?? 0,
             'totalValuation' => \App\Models\StockValuation::sum('total_value') ?? 0,
