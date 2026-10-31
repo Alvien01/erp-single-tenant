@@ -662,6 +662,13 @@ class PosTerminal extends Component
                 'status' => 'completed',
             ]);
 
+            // Batch load products and stocks for cart items
+            $cartProductIds = array_column($this->cart, 'id');
+            $products = !empty($cartProductIds) ? Product::whereIn('id', $cartProductIds)->get()->keyBy('id') : collect();
+            $stockGroups = !empty($cartProductIds)
+                ? StockItem::whereIn('product_id', $cartProductIds)->where('qty_on_hand', '>', 0)->get()->groupBy('product_id')
+                : collect();
+
             // Create transaction items & reduce stock
             foreach ($this->cart as $item) {
                 PosTransactionItem::create([
@@ -678,7 +685,7 @@ class PosTerminal extends Component
 
                 // Reduce stock
                 $qtyToReduce = $item['qty'];
-                $stocks = StockItem::where('product_id', $item['id'])->where('qty_on_hand', '>', 0)->get();
+                $stocks = $stockGroups->get($item['id'], collect());
                 foreach ($stocks as $stock) {
                     if ($qtyToReduce <= 0) break;
                     $reduction = min($qtyToReduce, $stock->qty_on_hand);
@@ -695,7 +702,7 @@ class PosTerminal extends Component
                     ]);
                 }
 
-                $product = Product::find($item['id']);
+                $product = $products->get($item['id']);
                 if ($product) $product->decrement('stock', $item['qty']);
             }
 
@@ -766,7 +773,7 @@ class PosTerminal extends Component
     // ── Render ──────────────────────────────────────────────────
     public function render()
     {
-        $productsQuery = Product::query()->where('stock', '>', 0);
+        $productsQuery = Product::with('category')->where('stock', '>', 0);
 
         if ($this->search) {
             $productsQuery->where(function ($q) {

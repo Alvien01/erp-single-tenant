@@ -182,11 +182,14 @@ class ProductionOrderManager extends Component
 
         // Validate stock if status is going to be completed
         if ($this->status === 'completed') {
+            $materialProductIds = array_column($this->materials, 'product_id');
+            $stocks = StockItem::whereIn('product_id', $materialProductIds)
+                ->where('warehouse_id', $warehouse->id)
+                ->get()
+                ->keyBy('product_id');
+
             foreach ($this->materials as $mat) {
-                $stock = StockItem::where('product_id', $mat['product_id'])
-                    ->where('warehouse_id', $warehouse->id)
-                    ->first();
-                
+                $stock = $stocks->get($mat['product_id']);
                 $available = $stock ? $stock->qty_on_hand : 0;
                 $used = floatval($mat['qty_used'] ?? 0);
                 if ($available < $used) {

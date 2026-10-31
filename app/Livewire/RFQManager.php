@@ -220,7 +220,7 @@ class RFQManager extends Component
 
     public function render()
     {
-        $query = Rfq::with(['supplier', 'items.product']);
+        $query = Rfq::with(['supplier', 'items.product', 'purchaseRequest']);
 
         if ($this->search) {
             $query->whereHas('supplier', function($q) {

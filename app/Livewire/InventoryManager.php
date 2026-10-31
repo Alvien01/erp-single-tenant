@@ -105,6 +105,10 @@ class InventoryManager extends Component
             'type' => $this->adj_type,
         ]);
 
+        $productIds = array_column($this->adj_items, 'product_id');
+        $products = !empty($productIds) ? Product::whereIn('id', $productIds)->get()->keyBy('id') : collect();
+        $wh = Warehouse::find($this->adj_warehouse_id);
+
         foreach ($this->adj_items as $item) {
             $diff = floatval($item['difference']);
             
@@ -123,7 +127,7 @@ class InventoryManager extends Component
             $stock->qty_on_hand = $item['actual_qty'];
             $stock->save();
 
-            $product = Product::find($item['product_id']);
+            $product = $products->get($item['product_id']);
             if ($product) {
                 $product->stock = StockItem::where('product_id', $item['product_id'])->sum('qty_on_hand');
                 $product->save();
@@ -134,7 +138,7 @@ class InventoryManager extends Component
             'user_id' => auth()->id() ?? 1,
             'module' => 'Inventory',
             'action' => 'Create Stock Adjustment',
-            'description' => 'Stock adjustment ' . $adj->adj_number . ' completed for warehouse ' . Warehouse::find($this->adj_warehouse_id)->warehouse_name
+            'description' => 'Stock adjustment ' . $adj->adj_number . ' completed for warehouse ' . ($wh->warehouse_name ?? '-')
         ]);
 
         session()->flash('success', 'Stock adjustment completed successfully.');

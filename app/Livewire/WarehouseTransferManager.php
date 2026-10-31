@@ -223,18 +223,22 @@ class WarehouseTransferManager extends Component
 
     public function completeTransfer($id)
     {
-        $trf = WarehouseTransfer::with('items')->findOrFail($id);
+        $trf = WarehouseTransfer::with(['items.product', 'sourceWarehouse', 'destinationWarehouse'])->findOrFail($id);
+
+        $itemProductIds = $trf->items->pluck('product_id')->toArray();
+        $sourceStocks = StockItem::whereIn('product_id', $itemProductIds)
+            ->where('warehouse_id', $trf->source_warehouse_id)
+            ->get()
+            ->keyBy('product_id');
 
         // Pre-validate stock levels
         foreach ($trf->items as $item) {
-            $stock = StockItem::where('product_id', $item->product_id)
-                ->where('warehouse_id', $trf->source_warehouse_id)
-                ->first();
+            $stock = $sourceStocks->get($item->product_id);
             $qtyOnHand = $stock ? floatval($stock->qty_on_hand) : 0;
 
             if ($qtyOnHand < floatval($item->qty)) {
-                $prod = Product::find($item->product_id);
-                session()->flash('error', "Cannot complete. Insufficient stock for product {$prod->name} in source warehouse.");
+                $prodName = $item->product?->name ?? ('Product #' . $item->product_id);
+                session()->flash('error', "Cannot complete. Insufficient stock for product {$prodName} in source warehouse.");
                 return;
             }
         }

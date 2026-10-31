@@ -630,12 +630,16 @@ class SalesQuotationForm extends Component
                 SalesQuotationItem::where('sales_quotation_id', $sq->id)->delete();
             }
 
+            $productIds = array_filter(array_column($this->items, 'product_id'));
+            $products = !empty($productIds) ? Product::whereIn('id', $productIds)->get()->keyBy('id') : collect();
+
             foreach ($this->items as $item) {
                 $isCustom = !empty($item['is_custom']);
                 $productId = !$isCustom ? ($item['product_id'] ?: null) : null;
+                $product = $productId ? $products->get($productId) : null;
                 $productName = $isCustom
                     ? $item['product_name']
-                    : (Product::find($productId)?->name ?? ($item['product_name'] ?? ''));
+                    : ($product?->name ?? ($item['product_name'] ?? ''));
 
                 SalesQuotationItem::create([
                     'sales_quotation_id' => $sq->id,

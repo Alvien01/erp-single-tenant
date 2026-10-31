@@ -111,7 +111,7 @@ class StoreManager extends Component
 
     public function render()
     {
-        $stores = Store::query()
+        $stores = Store::with('warehouse')
             ->when($this->search, fn($q) => $q->where('name', 'like', "%{$this->search}%")
                 ->orWhere('code', 'like', "%{$this->search}%"))
             ->latest()->paginate(15);

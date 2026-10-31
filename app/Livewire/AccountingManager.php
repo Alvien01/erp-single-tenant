@@ -478,6 +478,12 @@ class AccountingManager extends Component
         $end = $this->report_end_date;
 
         if ($this->report_type === 'income_statement') {
+            $journalTotals = Journal::selectRaw('account_id, type, SUM(amount) as total')
+                ->whereBetween('transaction_date', [$start, $end])
+                ->groupBy('account_id', 'type')
+                ->get()
+                ->groupBy('account_id');
+
             // Income accounts
             $incomeAccounts = Account::where('type', 'income')->orderBy('code')->get();
             $operatingRevenue = [];
@@ -485,15 +491,9 @@ class AccountingManager extends Component
             $totalRevenue = 0;
 
             foreach ($incomeAccounts as $acc) {
-                // Calculate net credit mutations in period
-                $credits = Journal::where('account_id', $acc->id)
-                    ->where('type', 'credit')
-                    ->whereBetween('transaction_date', [$start, $end])
-                    ->sum('amount');
-                $debits = Journal::where('account_id', $acc->id)
-                    ->where('type', 'debit')
-                    ->whereBetween('transaction_date', [$start, $end])
-                    ->sum('amount');
+                $accTotals = $journalTotals->get($acc->id);
+                $credits = (float)($accTotals?->firstWhere('type', 'credit')?->total ?? 0);
+                $debits  = (float)($accTotals?->firstWhere('type', 'debit')?->total ?? 0);
                 $net = $credits - $debits;
                 if ($net != 0 || $acc->balance != 0) {
                     $row = ['id' => $acc->id, 'code' => $acc->code, 'name' => $acc->name, 'amount' => $net];
@@ -516,14 +516,9 @@ class AccountingManager extends Component
             $totalOtherExpense = 0;
 
             foreach ($expenseAccounts as $acc) {
-                $debits = Journal::where('account_id', $acc->id)
-                    ->where('type', 'debit')
-                    ->whereBetween('transaction_date', [$start, $end])
-                    ->sum('amount');
-                $credits = Journal::where('account_id', $acc->id)
-                    ->where('type', 'credit')
-                    ->whereBetween('transaction_date', [$start, $end])
-                    ->sum('amount');
+                $accTotals = $journalTotals->get($acc->id);
+                $debits  = (float)($accTotals?->firstWhere('type', 'debit')?->total ?? 0);
+                $credits = (float)($accTotals?->firstWhere('type', 'credit')?->total ?? 0);
                 $net = $debits - $credits;
                 if ($net != 0 || $acc->balance != 0) {
                     $row = ['id' => $acc->id, 'code' => $acc->code, 'name' => $acc->name, 'amount' => $net];
@@ -564,6 +559,12 @@ class AccountingManager extends Component
             // As of report_end_date
             $accounts = Account::all();
 
+            $journalTotals = Journal::selectRaw('account_id, type, SUM(amount) as total')
+                ->where('transaction_date', '<=', $end)
+                ->groupBy('account_id', 'type')
+                ->get()
+                ->groupBy('account_id');
+
             $currentAssets = [];
             $nonCurrentAssets = [];
             $currentLiabilities = [];
@@ -577,9 +578,9 @@ class AccountingManager extends Component
             $totalEquity = 0;
 
             foreach ($accounts as $acc) {
-                // Compute balance as of $end
-                $debits = Journal::where('account_id', $acc->id)->where('type', 'debit')->where('transaction_date', '<=', $end)->sum('amount');
-                $credits = Journal::where('account_id', $acc->id)->where('type', 'credit')->where('transaction_date', '<=', $end)->sum('amount');
+                $accTotals = $journalTotals->get($acc->id);
+                $debits  = (float)($accTotals?->firstWhere('type', 'debit')?->total ?? 0);
+                $credits = (float)($accTotals?->firstWhere('type', 'credit')?->total ?? 0);
 
                 if ($acc->type === 'asset') {
                     $bal = $debits - $credits;
@@ -644,16 +645,27 @@ class AccountingManager extends Component
             $totalEndingDebit = 0;
             $totalEndingCredit = 0;
 
+            $stats = Journal::selectRaw("
+                account_id,
+                SUM(CASE WHEN transaction_date < ? AND type = 'debit' THEN amount ELSE 0 END) as deb_before,
+                SUM(CASE WHEN transaction_date < ? AND type = 'credit' THEN amount ELSE 0 END) as cred_before,
+                SUM(CASE WHEN transaction_date >= ? AND transaction_date <= ? AND type = 'debit' THEN amount ELSE 0 END) as deb_mut,
+                SUM(CASE WHEN transaction_date >= ? AND transaction_date <= ? AND type = 'credit' THEN amount ELSE 0 END) as cred_mut
+            ", [$start, $start, $start, $end, $start, $end])
+            ->where('transaction_date', '<=', $end)
+            ->groupBy('account_id')
+            ->get()
+            ->keyBy('account_id');
+
             foreach ($accounts as $acc) {
-                // Opening before $start
-                $debBefore = Journal::where('account_id', $acc->id)->where('type', 'debit')->where('transaction_date', '<', $start)->sum('amount');
-                $credBefore = Journal::where('account_id', $acc->id)->where('type', 'credit')->where('transaction_date', '<', $start)->sum('amount');
+                $row = $stats->get($acc->id);
+                $debBefore  = (float)($row?->deb_before ?? 0);
+                $credBefore = (float)($row?->cred_before ?? 0);
                 
                 $opening = in_array($acc->type, ['asset', 'expense']) ? ($debBefore - $credBefore) : ($credBefore - $debBefore);
 
-                // Mutations during period
-                $debMut = Journal::where('account_id', $acc->id)->where('type', 'debit')->whereBetween('transaction_date', [$start, $end])->sum('amount');
-                $credMut = Journal::where('account_id', $acc->id)->where('type', 'credit')->whereBetween('transaction_date', [$start, $end])->sum('amount');
+                $debMut  = (float)($row?->deb_mut ?? 0);
+                $credMut = (float)($row?->cred_mut ?? 0);
 
                 // Ending balance
                 $ending = in_array($acc->type, ['asset', 'expense']) ? ($opening + $debMut - $credMut) : ($opening + $credMut - $debMut);
@@ -990,8 +1002,13 @@ class AccountingManager extends Component
             ['name' => 'Akumulasi Penyusutan Aset', 'type' => 'asset', 'balance' => 0]
         );
 
+        $depStats = AssetDepreciation::selectRaw('asset_id, COUNT(*) as count, SUM(amount) as total')
+            ->groupBy('asset_id')
+            ->get()
+            ->keyBy('asset_id');
+
         foreach ($assets as $asset) {
-            $existingMonths = AssetDepreciation::where('asset_id', $asset->id)->count();
+            $existingMonths = (int)($depStats[$asset->id]->count ?? 0);
 
             if ($existingMonths >= $asset->useful_life_months) {
                 continue; 
@@ -1007,7 +1024,7 @@ class AccountingManager extends Component
                 continue;
             }
 
-            $accumulated = AssetDepreciation::where('asset_id', $asset->id)->sum('amount') + $monthlyAmount;
+            $accumulated = (float)($depStats[$asset->id]->total ?? 0) + $monthlyAmount;
             $bookValue = $asset->purchase_price - $accumulated;
 
             AssetDepreciation::create([
@@ -1127,25 +1144,6 @@ class AccountingManager extends Component
             'cashBankBalance' => $cashBankBalance,
             'receivablesBalance' => $receivablesBalance,
             'payablesBalance' => $payablesBalance,
-            'cashTransactionsCount' => $cashTransactionsCount,
-            'cashTransactionsTotal' => $cashTransactionsTotal,
-            'cashTransfersCount' => $cashTransfersCount,
-            'bankAccountsCount' => $bankAccountsCount,
-            'receiptsCount' => $receiptsCount,
-            'receiptsTotal' => $receiptsTotal,
-            'disbursementsCount' => $disbursementsCount,
-            'disbursementsTotal' => $disbursementsTotal,
-            'pendingSchedulesCount' => $pendingSchedulesCount,
-            'pendingSchedulesTotal' => $pendingSchedulesTotal,
-            'taxInvoicesCount' => $taxInvoicesCount,
-            'taxPPNMasukan' => $taxPPNMasukan,
-            'taxPPNKeluaran' => $taxPPNKeluaran,
-            'budgetsCount' => $budgetsCount,
-            'totalPlannedBudget' => $totalPlannedBudget,
-            'pendingApprovalsCount' => $pendingApprovalsCount,
-            'assetsCount' => $assetsCount,
-            'totalAssetCost' => $totalAssetCost,
-            'totalDepreciation' => $totalDepreciation,
             'recentTransactions' => $recentTransactions,
         ];
     }
@@ -1226,16 +1224,19 @@ class AccountingManager extends Component
         // Period Closings history
         $closings = PeriodClosing::orderBy('closing_date', 'desc')->paginate(10);
 
+        $accounts = $coaQuery->get();
+        $allAccounts = $this->search ? Account::orderBy('code')->get() : $accounts;
+
         return view('livewire.accounting-manager', [
-            'accounts' => $coaQuery->get(),
+            'accounts' => $accounts,
             'journals' => $journals,
             'assets' => Asset::with('depreciations')->paginate(10),
-            'allAccounts' => Account::orderBy('code')->get(),
+            'allAccounts' => $allAccounts,
             'ledgerEntries' => $ledgerEntries,
             'openingBalance' => $openingBalance,
             'closingBalance' => $closingBalance,
             'closings' => $closings,
-            'stats' => $this->getDashboardStats(),
+            'stats' => $this->activeTab === 'dashboard' ? $this->getDashboardStats() : [],
             'reportData' => $reportData,
         ])->layout('layouts.app');
     }

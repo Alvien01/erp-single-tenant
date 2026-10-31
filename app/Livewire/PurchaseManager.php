@@ -194,6 +194,10 @@ class PurchaseManager extends Component
             PurchaseItem::where('purchase_id', $purchase->id)->delete();
         }
 
+        $products = ($this->purchase_status === 'received')
+            ? Product::whereIn('id', array_column($this->items, 'product_id'))->get()->keyBy('id')
+            : collect();
+
         foreach ($this->items as $item) {
             PurchaseItem::create([
                 'purchase_id' => $purchase->id,
@@ -204,7 +208,7 @@ class PurchaseManager extends Component
             ]);
 
             if ($this->purchase_status === 'received') {
-                $product = Product::find($item['product_id']);
+                $product = $products->get($item['product_id']);
                 if ($product) {
                     $product->increment('stock', $item['quantity']);
                 }

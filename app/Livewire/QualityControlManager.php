@@ -169,10 +169,22 @@ class QualityControlManager extends Component
 
         $checkQuery = QualityCheck::with(['checkpoint.product', 'checker'])->orderBy('checked_at', 'desc');
 
+        $checkpoints = $this->activeTab === 'checkpoints'
+            ? $cpQuery->paginate(10)
+            : new \Illuminate\Pagination\LengthAwarePaginator([], 0, 10);
+
+        $checks = $this->activeTab === 'checks'
+            ? $checkQuery->paginate(10)
+            : new \Illuminate\Pagination\LengthAwarePaginator([], 0, 10);
+
+        $products = ($this->isOpen && $this->modalType === 'checkpoint')
+            ? Product::select('id', 'name')->orderBy('name')->get()
+            : collect();
+
         return view('livewire.quality-control-manager', [
-            'checkpoints' => $cpQuery->paginate(10),
-            'checks' => $checkQuery->paginate(10),
-            'products' => Product::all(),
+            'checkpoints' => $checkpoints,
+            'checks' => $checks,
+            'products' => $products,
         ]);
     }
 }

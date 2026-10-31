@@ -88,8 +88,6 @@ class SalesQuotationManager extends Component
 
         return view('livewire.sales-quotation-manager', [
             'quotations' => $query->orderBy('created_at', 'desc')->paginate(10),
-            'customers' => Customer::orderBy('name')->get(),
-            'products' => Product::orderBy('name')->get(),
         ]);
     }
 }

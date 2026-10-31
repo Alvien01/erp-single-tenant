@@ -847,24 +847,27 @@ class HRManager extends Component
             $attQuery->where('date', $this->att_filter_date);
         }
 
-        $payrolls = Payroll::with(['employee', 'components'])->orderBy('period', 'desc')->paginate(10);
+        $emptyPaginator = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 10);
 
-        $departments = Department::orderBy('name', 'asc')->paginate(10);
-        $leaves = Leave::with('employee')->orderBy('created_at', 'desc')->paginate(10);
+        $employees = $this->activeTab === 'employees' ? $empQuery->paginate(10) : $emptyPaginator;
+        $attendances = $this->activeTab === 'attendance' ? $attQuery->paginate(10) : $emptyPaginator;
+        $payrolls = $this->activeTab === 'payroll' ? Payroll::with(['employee', 'components'])->orderBy('period', 'desc')->paginate(10) : $emptyPaginator;
+        $departments = $this->activeTab === 'departments' ? Department::orderBy('name', 'asc')->paginate(10) : $emptyPaginator;
+        $leaves = $this->activeTab === 'leaves' ? Leave::with('employee')->orderBy('created_at', 'desc')->paginate(10) : $emptyPaginator;
 
         $attendanceSetting = AttendanceSetting::where('is_active', '=', true, 'and')->first();
 
         return view('livewire.h-r-manager', [
-            'employees' => $empQuery->paginate(10),
-            'attendances' => $attQuery->paginate(10),
+            'employees' => $employees,
+            'attendances' => $attendances,
             'payrolls' => $payrolls,
             'departments' => $departments,
             'leaves' => $leaves,
-            'allEmployees' => Employee::all(),
+            'allEmployees' => $this->isOpen ? Employee::select('id', 'name', 'employee_number')->orderBy('name')->get() : collect(),
             'attendanceSetting' => $attendanceSetting,
             'currentEmployee' => $this->currentEmployee,
-            'isAdmin' => $this->isAdmin, // Kirim ke view
-            'stats' => $this->getDashboardStats(),
+            'isAdmin' => $this->isAdmin,
+            'stats' => $this->activeTab === 'dashboard' ? $this->getDashboardStats() : [],
         ]);
     }
 

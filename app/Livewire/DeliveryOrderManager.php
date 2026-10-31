@@ -241,7 +241,7 @@ class DeliveryOrderManager extends Component
 
         return view('livewire.delivery-order-manager', [
             'deliveryOrders' => $query->orderBy('delivery_date', 'desc')->paginate(10),
-            'salesOrders' => SalesOrder::where('status', 'confirmed')->orderBy('so_number', 'desc')->get(),
+            'salesOrders' => SalesOrder::with('customer')->where('status', 'confirmed')->orderBy('so_number', 'desc')->get(),
             'warehouses' => Warehouse::orderBy('warehouse_name')->get(),
         ]);
     }

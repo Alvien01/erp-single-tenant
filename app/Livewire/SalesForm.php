@@ -628,12 +628,16 @@ class SalesForm extends Component
             SaleItem::where('sale_id', $sale->id)->delete();
         }
 
+        $productIds = array_filter(array_column($this->items, 'product_id'));
+        $products = !empty($productIds) ? Product::whereIn('id', $productIds)->get()->keyBy('id') : collect();
+
         foreach ($this->items as $item) {
             $isCustom = !empty($item['is_custom']);
             $productId = !$isCustom ? ($item['product_id'] ?: null) : null;
+            $product = $productId ? $products->get($productId) : null;
             $productName = $isCustom
                 ? $item['product_name']
-                : (Product::find($productId)?->name ?? ($item['product_name'] ?? ''));
+                : ($product?->name ?? ($item['product_name'] ?? ''));
 
             SaleItem::create([
                 'sale_id' => $sale->id,
@@ -645,11 +649,8 @@ class SalesForm extends Component
                 'total_price' => floatval($item['total'] ?? 0),
             ]);
 
-            if ($this->sale_status === 'delivered' && $productId) {
-                $product = Product::find($productId);
-                if ($product) {
-                    $product->decrement('stock', floatval($item['quantity'] ?? 0));
-                }
+            if ($this->sale_status === 'delivered' && $product) {
+                $product->decrement('stock', floatval($item['quantity'] ?? 0));
             }
         }
 

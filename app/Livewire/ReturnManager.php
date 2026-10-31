@@ -293,7 +293,7 @@ class ReturnManager extends Component
 
     public function render()
     {
-        $query = ReturnModel::with(['warehouse']);
+        $query = ReturnModel::with(['warehouse', 'reference']);
 
         if ($this->search) {
             $query->where('return_number', 'like', '%' . $this->search . '%');
@@ -301,8 +301,8 @@ class ReturnManager extends Component
 
         return view('livewire.return-manager', [
             'returns' => $query->orderBy('return_date', 'desc')->paginate(10),
-            'sales' => Sale::orderBy('invoice_number', 'desc')->get(),
-            'purchases' => Purchase::orderBy('purchase_number', 'desc')->get(),
+            'sales' => Sale::with('customer')->orderBy('invoice_number', 'desc')->get(),
+            'purchases' => Purchase::with('supplier')->orderBy('purchase_number', 'desc')->get(),
             'warehouses' => Warehouse::orderBy('warehouse_name')->get(),
         ]);
     }

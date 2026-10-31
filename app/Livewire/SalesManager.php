@@ -61,8 +61,6 @@ class SalesManager extends Component
 
         return view('livewire.sales-manager', [
             'sales' => $query->orderBy('invoice_number', 'desc')->paginate(10),
-            'customers' => Customer::all(),
-            'products' => Product::all(),
         ]);
     }
 }

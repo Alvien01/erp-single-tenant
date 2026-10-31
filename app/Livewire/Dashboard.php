@@ -368,67 +368,105 @@ class Dashboard extends Component
         $trend  = [];
 
         if ($diff <= 14) {
+            $salesByDate = Sale::whereBetween('sale_date', [$start->toDateString(), $end->toDateString()])
+                ->selectRaw('DATE(sale_date) as d, SUM(grand_total) as total')
+                ->groupBy('d')
+                ->pluck('total', 'd');
+
             $cursor = $start->copy();
             while ($cursor->lte($end)) {
                 $label = $cursor->format('d M');
-                $trend[$label] = Sale::whereDate('sale_date', $cursor->toDateString())->sum('grand_total') ?? 0;
+                $d = $cursor->toDateString();
+                $trend[$label] = (float)($salesByDate[$d] ?? 0);
                 $cursor->addDay();
                 if (count($trend) >= 7) break; // cap at 7 bars
             }
         } elseif ($diff <= 92) {
+            $wStartOverall = $start->copy()->startOfWeek();
+            $wEndOverall   = $start->copy()->startOfWeek()->addWeeks(6)->endOfWeek();
+
+            $salesByDate = Sale::whereBetween('sale_date', [$wStartOverall->toDateString(), $wEndOverall->toDateString()])
+                ->selectRaw('DATE(sale_date) as d, SUM(grand_total) as total')
+                ->groupBy('d')
+                ->pluck('total', 'd');
+
             $cursor = $start->copy()->startOfWeek();
             for ($i = 0; $i < 6; $i++) {
                 $wStart = $cursor->copy();
                 $wEnd   = $cursor->copy()->endOfWeek();
                 $label  = 'W' . $cursor->isoWeek();
-                $trend[$label] = Sale::whereBetween('sale_date', [$wStart->toDateString(), $wEnd->toDateString()])->sum('grand_total') ?? 0;
+
+                $weekTotal = 0;
+                $dayCursor = $wStart->copy();
+                while ($dayCursor->lte($wEnd)) {
+                    $weekTotal += (float)($salesByDate[$dayCursor->toDateString()] ?? 0);
+                    $dayCursor->addDay();
+                }
+
+                $trend[$label] = $weekTotal;
                 $cursor->addWeek();
                 if ($cursor->gt($end)) break;
             }
         } else {
+            $oldestMonth = $end->copy()->subMonths(5)->startOfMonth();
+            $salesByMonth = Sale::whereBetween('sale_date', [$oldestMonth->toDateString(), $end->toDateString()])
+                ->selectRaw('DATE_FORMAT(sale_date, "%Y-%m") as ym, SUM(grand_total) as total')
+                ->groupBy('ym')
+                ->pluck('total', 'ym');
+
             for ($i = 5; $i >= 0; $i--) {
                 $date  = $end->copy()->subMonths($i);
                 $label = $date->format('M y');
-                $trend[$label] = Sale::whereYear('sale_date', $date->year)
-                    ->whereMonth('sale_date', $date->month)
-                    ->sum('grand_total') ?? 0;
+                $ym    = $date->format('Y-m');
+                $trend[$label] = (float)($salesByMonth[$ym] ?? 0);
             }
         }
 
         return $trend;
     }
 
-    // Get Sales Last 30 Days Data
+    // Get Sales Last 30 Days Data (Optimized to 1 grouped query)
     public function getSalesLast30DaysProperty(): array
     {
+        $startDate = Carbon::now()->subDays(29)->startOfDay();
+        $endDate   = Carbon::now()->endOfDay();
+
+        $salesByDate = Sale::whereBetween('sale_date', [$startDate->toDateString(), $endDate->toDateString()])
+            ->selectRaw('DATE(sale_date) as d, SUM(grand_total) as total')
+            ->groupBy('d')
+            ->pluck('total', 'd');
+
         $data = [];
         for ($i = 29; $i >= 0; $i--) {
             $date = Carbon::now()->subDays($i);
+            $d = $date->toDateString();
             $label = $date->format('d M');
-            $sales = Sale::whereDate('sale_date', $date->toDateString())->sum('grand_total') ?? 0;
-            $data[$label] = $sales;
+            $data[$label] = (float)($salesByDate[$d] ?? 0);
         }
         return $data;
     }
 
-    // Get Sales Current Financial Year Data
+    // Get Sales Current Financial Year Data (Optimized to 1 grouped query)
     public function getSalesCurrentFYProperty(): array
     {
         $now = Carbon::now();
         $fyStart = $now->month >= 4 
-            ? Carbon::create($now->year, 4, 1) 
-            : Carbon::create($now->year - 1, 4, 1);
-        
+            ? Carbon::create($now->year, 4, 1)->startOfMonth()
+            : Carbon::create($now->year - 1, 4, 1)->startOfMonth();
+
+        $salesByMonth = Sale::whereBetween('sale_date', [$fyStart->toDateString(), $now->toDateString()])
+            ->selectRaw('DATE_FORMAT(sale_date, "%Y-%m") as ym, SUM(grand_total) as total')
+            ->groupBy('ym')
+            ->pluck('total', 'ym');
+
         $data = [];
         for ($i = 0; $i < 12; $i++) {
             $date = $fyStart->copy()->addMonths($i);
             if ($date->gt($now)) break;
             
+            $ym = $date->format('Y-m');
             $label = $date->format('M Y');
-            $sales = Sale::whereYear('sale_date', $date->year)
-                ->whereMonth('sale_date', $date->month)
-                ->sum('grand_total') ?? 0;
-            $data[$label] = $sales;
+            $data[$label] = (float)($salesByMonth[$ym] ?? 0);
         }
         
         return $data;
@@ -522,12 +560,8 @@ class Dashboard extends Component
                 ->where('date', $today)->first();
         }
 
-        // Recent attendances (last 10 entries for today)
-        $recentAttendances = Attendance::with('employee')
-            ->where('date', $today)
-            ->orderBy('check_in', 'desc')
-            ->take(10)
-            ->get();
+        // Recent attendances (last 10 entries for today, reused from memory)
+        $recentAttendances = $todayAttendances->sortByDesc('check_in')->take(10)->values();
 
         // Dynamic sub-dashboard data
         $subDashboardData = [];
@@ -578,9 +612,12 @@ class Dashboard extends Component
             });
 
             $totalQuotations = (clone $quotationsQuery)->count();
-            $totalQuotationsValue = (clone $quotationsQuery)->with('items')->get()->sum(function ($sq) {
-                return floatval($sq->grand_total > 0 ? $sq->grand_total : $sq->items->sum('subtotal'));
-            });
+            $totalQuotationsValue = (float) (clone $quotationsQuery)->select('id', 'grand_total')
+                ->with(['items:id,sales_quotation_id,subtotal'])
+                ->get()
+                ->sum(function ($sq) {
+                    return floatval($sq->grand_total > 0 ? $sq->grand_total : $sq->items->sum('subtotal'));
+                });
 
             $totalOrders = SalesOrder::whereBetween('order_date', [$startDateStr, $endDateStr])->count();
             $totalOrdersValue = (float) SalesOrderItem::whereHas('salesOrder', function ($q) use ($startDateStr, $endDateStr) {
