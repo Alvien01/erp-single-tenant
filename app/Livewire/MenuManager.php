@@ -293,6 +293,10 @@ class MenuManager extends Component
                         return false;
                     }
                 }
+                // Sub-pages (e.g. sales.create) inherit their parent menu, don't register them separately
+                if (\App\Http\Middleware\CheckMenuAccess::resolveMenuRoute($name) !== $name) {
+                    return false;
+                }
                 return true;
             })
             ->map(function ($route) {
