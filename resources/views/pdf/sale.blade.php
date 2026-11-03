@@ -291,8 +291,8 @@
     <div class="info-box">
         <div style="font-weight: bold; margin-bottom: 8px;">{{ $terbilang }}</div>
         <div style="font-weight: bold; margin-top: 4px;">Informasi Bank:</div>
-        <div style="font-weight: bold;">{{ $company['bank_info'] }}</div>
-        <div style="font-weight: bold;">Atas Nama: {{ $company['bank_holder'] }}</div>
+        <div style="font-weight: bold;">OCBC - Nomor rekening 545800125498</div>
+        <div style="font-weight: bold;">Atas Nama: CV RADI AMARTHA MAHARDIKA</div>
     </div>
     <table class="signature-table">
         <tr>
