@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\ActivityLog;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class SalesQuotationForm extends Component
 {
@@ -25,6 +26,7 @@ class SalesQuotationForm extends Component
     public $customer_mode = 'select'; // 'select' or 'custom'
     public $quotation_date = '';
     public $valid_until = '';
+    public $payment_scheme = '100% di muka';
     public $total_amount = 0; // Subtotal (DPP)
     public $shipping_price = 0;
     public $discount_amount = 0;
@@ -50,6 +52,7 @@ class SalesQuotationForm extends Component
             $this->customer_mode = (empty($sq->customer_id) && !empty($sq->customer_name)) ? 'custom' : 'select';
             $this->quotation_date = $sq->quotation_date ? $sq->quotation_date->format('Y-m-d') : ($sq->created_at ? $sq->created_at->format('Y-m-d') : now()->format('Y-m-d'));
             $this->valid_until = $sq->valid_until ? $sq->valid_until->format('Y-m-d') : now()->addDays(14)->format('Y-m-d');
+            $this->payment_scheme = $sq->payment_scheme ?: '100% di muka';
             $this->total_amount = $sq->total_amount ?: 0;
             $this->shipping_price = $sq->shipping_price ?? 0;
             $this->discount_amount = $sq->discount_amount ?? 0;
@@ -96,6 +99,7 @@ class SalesQuotationForm extends Component
             $this->sq_number = $this->generateSqNumber();
             $this->quotation_date = now()->format('Y-m-d');
             $this->valid_until = now()->addDays(14)->format('Y-m-d');
+            $this->payment_scheme = '100% di muka';
             $this->customer_mode = 'select';
             $this->tax_type = 'pph_05';
             $this->status = 'draft';
@@ -560,6 +564,7 @@ class SalesQuotationForm extends Component
             ],
             'quotation_date' => 'required|date',
             'valid_until' => 'required|date',
+            'payment_scheme' => 'nullable|string|max:255',
             'status' => 'required|in:draft,sent,converted,canceled',
             'total_amount' => 'nullable|numeric|min:0',
             'shipping_price' => 'nullable|numeric|min:0',
@@ -609,7 +614,7 @@ class SalesQuotationForm extends Component
         $grandTotal = is_numeric($this->grand_total) ? floatval($this->grand_total) : 0;
 
         DB::transaction(function () use ($customerId, $customerName, $totalAmount, $shippingPrice, $discountAmount, $taxAmount, $grandTotal) {
-            $sq = SalesQuotation::updateOrCreate(['id' => $this->sq_id], [
+            $sqData = [
                 'sq_number' => $this->sq_number,
                 'customer_id' => $customerId,
                 'customer_name' => $customerName,
@@ -624,7 +629,13 @@ class SalesQuotationForm extends Component
                 'created_by' => auth()->id() ?? 1,
                 'status' => $this->status,
                 'notes' => $this->notes,
-            ]);
+            ];
+
+            if (Schema::hasColumn('sales_quotations', 'payment_scheme')) {
+                $sqData['payment_scheme'] = $this->payment_scheme ?: '100% di muka';
+            }
+
+            $sq = SalesQuotation::updateOrCreate(['id' => $this->sq_id], $sqData);
 
             if ($this->isEditMode) {
                 SalesQuotationItem::where('sales_quotation_id', $sq->id)->delete();

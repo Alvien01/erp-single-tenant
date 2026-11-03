@@ -153,7 +153,7 @@
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 pt-1">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-5 pt-1">
                         <!-- Quotation Date -->
                         <div>
                             <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">
@@ -170,6 +170,27 @@
                             </label>
                             <input type="date" wire:model="valid_until" class="block w-full border border-gray-300 rounded-lg py-2.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
                             @error('valid_until') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
+                        </div>
+
+                        <!-- Payment Scheme -->
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">
+                                Skema Pembayaran (Payment Scheme)
+                            </label>
+                            <input type="text" 
+                                   wire:model="payment_scheme" 
+                                   list="payment-scheme-options"
+                                   class="block w-full border border-gray-300 rounded-lg py-2.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white" 
+                                   placeholder="e.g. 100% di muka">
+                            <datalist id="payment-scheme-options">
+                                <option value="100% di muka">
+                                <option value="DP 50%, Pelunasan Sebelum Pengiriman">
+                                <option value="DP 30%, Pelunasan Saat Serah Terima">
+                                <option value="Term of Payment (TOP) 14 Hari">
+                                <option value="Term of Payment (TOP) 30 Hari">
+                                <option value="Cash on Delivery (COD)">
+                            </datalist>
+                            @error('payment_scheme') <span class="text-red-500 text-xs mt-1 block">{{ $message }}</span> @enderror
                         </div>
                     </div>
                 </div>
@@ -694,6 +715,11 @@
                             <td>Berlaku Sampai</td>
                             <td>:</td>
                             <td>{{ $previewCustomer['formatted_valid'] }}</td>
+                        </tr>
+                        <tr>
+                            <td>Skema Pembayaran</td>
+                            <td>:</td>
+                            <td>{{ $payment_scheme ?: '100% di muka' }}</td>
                         </tr>
                         <tr>
                             <td colspan="3" class="pt-2 font-medium">Kepada Yth.</td>

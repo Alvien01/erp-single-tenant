@@ -43,6 +43,11 @@ class SalesQuotation extends Model
         };
     }
 
+    public function getPaymentSchemeAttribute($value): string
+    {
+        return $value ?: '100% di muka';
+    }
+
     public function getCalculatedItemsSubtotalAttribute(): float
     {
         return (float) $this->items->sum(function ($item) {

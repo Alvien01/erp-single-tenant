@@ -254,7 +254,7 @@
                         <td colspan="2"><strong>Berlaku Sampai:</strong> {{ \Carbon\Carbon::parse($quotation->valid_until)->translatedFormat('d F Y') }}</td>
                     </tr>
                     <tr>
-                        <td colspan="2"><strong>Skema Pembayaran:</strong> 100% di muka</td>
+                        <td colspan="2"><strong>Skema Pembayaran:</strong> {{ $quotation->payment_scheme ?: '100% di muka' }}</td>
                     </tr>
                 </table>
             </td>
@@ -337,8 +337,8 @@
         <!-- BANK INFO -->
         <div class="bank-info">
             <strong>Informasi Bank:</strong>
-            {{ $company['bank_name'] ?? 'BCA' }} - {{ $company['bank_account'] ?? '-' }}<br>
-            Atas Nama: {{ $company['bank_holder'] ?? $company['name'] }}
+            OCBC - Nomor rekening 545800125498<br>
+            Atas Nama: CV RADI AMARTHA MAHARDIKA
         </div>
     </div>
 
